@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <math.h>
+#include <strings.h>
 
 #define number_of(a) (sizeof(a) / sizeof(*(a)))
 
@@ -16,14 +17,17 @@ typedef GLdouble vec3_t[3];
 typedef GLdouble matrix4x4_t[4][4];
 
 /* Vector */
-static GLfloat
+static GLdouble
 vec3_length(const vec3_t v)
 {
-	return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+	GLdouble sum_squares = 0;
+	for (GLuint i = 0; i < 3; ++i)
+		sum_squares+= v[i] * v[i];
+	return sqrtf(sum_squares);
 }
 
 static void
-vec3_divide_scalar(const vec3_t v, GLfloat quot, vec3_t rv)
+vec3_divide_scalar(const vec3_t v, GLdouble quot, vec3_t rv)
 {
 	for (GLuint i = 0; i < 3; ++i)
 		rv[i] = v[i] / quot;
@@ -36,16 +40,15 @@ vec3_norm(const vec3_t v, vec3_t rv)
 }
 
 /* \   \   \     /   /   /
- * -ex -ey -ez +ex +ey +ez
- *  bx  by  bz  bx  by  bz
+ * +ex +ey +ez -ex -ey -ez
  *  ax  ay  az  ax  ay  az
+ *  bx  by  bz  bx  by  bz
  */
 static void
 vec3_cross(const vec3_t a, const vec3_t b, vec3_t rv)
 {
-	rv[V_X] = a[V_Y] * b[V_Z] - a[V_Z] * b[V_Y];
-	rv[V_Y] = a[V_Z] * b[V_X] - a[V_X] * b[V_Z];
-	rv[V_Z] = a[V_X] * b[V_Y] - a[V_Y] * b[V_X];
+	for (GLuint i = 0; i < 3; ++i)
+		rv[i] = a[(i + 1) % 3] * b[(i + 2) % 3] - a[(i + 2) % 3] * b[(i + 1) % 3];
 }
 
 /* GL */
@@ -54,6 +57,16 @@ static vec3_t normals[10];
 static GLuint num_normals;
 static vec3_t vertices[10];
 static GLuint num_vertices;
+
+void
+soglMultMatrix(const matrix4x4_t m)
+{
+	GLdouble m16[16];
+	for (GLuint col = 0; col < 4; ++col)
+		for (GLuint row = 0; row < 4; ++row)
+			m16[col * 4 + row] = m[col][row];
+	glMultMatrixd(m16);
+}
 
 void
 soglBegin(GLenum mode)
@@ -111,10 +124,8 @@ soglEnd(void)
 		assert(num_normals == 1);
 		glBegin(GL_QUADS);
 		glNormal3dv(normals[0]);
-		glVertex3dv(vertices[0]);
-		glVertex3dv(vertices[1]);
-		glVertex3dv(vertices[2]);
-		glVertex3dv(vertices[3]);
+		for (GLuint i = 0; i < num_vertices; ++i)
+			glVertex3dv(vertices[i]);
 		glEnd();
 	}
 	else
@@ -165,36 +176,41 @@ soglTranslatef(GLfloat x, GLfloat y, GLfloat z)
 void
 sogluLookAt(GLdouble eyeX, GLdouble eyeY, GLdouble eyeZ, GLdouble centerX, GLdouble centerY, GLdouble centerZ, GLdouble upX, GLdouble upY, GLdouble upZ)
 {
-	vec3_t forward = {centerX - eyeX, centerY - eyeY, centerZ - eyeZ}, norm_forward;
-	vec3_norm(forward, norm_forward);
-	vec3_t up = {upX, upY, upZ}, norm_up;
-	vec3_norm(up, norm_up);
+	vec3_t forward = {centerX - eyeX, centerY - eyeY, centerZ - eyeZ};
+	vec3_norm(forward, forward);
+	vec3_t up = {upX, upY, upZ};
+	vec3_norm(up, up);
 	vec3_t s;
-	vec3_cross(norm_forward, norm_up, s);
+	vec3_cross(forward, up, s);
 	vec3_t u;
-	vec3_cross(s, norm_forward, u);
+	vec3_cross(s, forward, u);
 	matrix4x4_t m;
 	for (GLuint col = 0; col < 3; ++col)
 	{
 		m[col][0] = s[col];
 		m[col][1] = u[col];
-		m[col][2] = -norm_forward[col];
+		m[col][2] = -forward[col];
 		m[col][3] = 0;
 	}
 	for (GLuint i = 0; i < 3; ++i)
 		m[3][i] = 0;
 	m[3][3] = 1;
-	GLdouble m16[16];
-	for (GLuint col = 0; col < 4; ++col)
-		for (GLuint row = 0; row < 4; ++row)
-			m16[col * 4 + row] = m[col][row];
-	glMultMatrixd(m16);
+	soglMultMatrix(m);
 	glTranslated(-eyeX, -eyeY, -eyeZ);
 }
 
 void
 sogluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar)
 {
-	fprintf(stderr, "%s()\n", __FUNCTION__);
+	GLdouble fovy_rad = fovy / (180.0 / M_PI);
+	GLdouble f = 1.0 / tan(fovy_rad / 2.0);
+	matrix4x4_t m;
+	bzero(m, sizeof(m));
+	m[0][0] = f / aspect;
+	m[1][1] = f;
+	m[2][2] = (zFar + zNear) / (zNear - zFar);
+	m[2][3] = -1;
+	m[3][2] = (2 * zFar * zNear) / (zNear - zFar);
+	soglMultMatrix(m);
 }
 

@@ -3,6 +3,6 @@
 #define glVertex3fv soglVertex3fv
 #define glNormal3fv soglNormal3fv
 #define gluLookAt sogluLookAt
-//#define gluPerspective sogluPerspective
+#define gluPerspective sogluPerspective
 
 #include <GL/glut.h>
