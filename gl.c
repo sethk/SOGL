@@ -14,6 +14,7 @@ enum
 };
 
 typedef GLdouble vec3_t[3];
+typedef GLdouble vec4_t[4];
 struct matrix4x4
 {
 	union
@@ -43,6 +44,13 @@ vec3_divide_scalar(const vec3_t v, GLdouble quot, vec3_t rv)
 }
 
 static void
+vec4_divide_scalar(const vec4_t v, GLdouble quot, vec4_t rv)
+{
+	for (GLuint i = 0; i < 4; ++i)
+		rv[i] = v[i] / quot;
+}
+
+static void
 vec3_norm(const vec3_t v, vec3_t rv)
 {
 	vec3_divide_scalar(v, vec3_length(v), rv);
@@ -60,9 +68,26 @@ vec3_cross(const vec3_t a, const vec3_t b, vec3_t rv)
 		rv[i] = a[(i + 1) % 3] * b[(i + 2) % 3] - a[(i + 2) % 3] * b[(i + 1) % 3];
 }
 
+/*
+static GLdouble
+vec4_dot(const vec4_t a, const vec4_t b)
+{
+	GLdouble dot = 0;
+	for (GLuint i = 0; i < 4; ++i)
+		dot+= a[i] * b[i];
+	return dot;
+}
+*/
+
+static void
+vec4_print(const vec4_t v)
+{
+	fprintf(stderr, "(%g, %g, %g, %g)\n", v[0], v[1], v[2], v[3]);
+}
+
 /* Matrix */
 static void
-matrix4x4_mult(const struct matrix4x4 m, const struct matrix4x4 n, struct matrix4x4 *rm)
+matrix4x4_mult_matrix4x4(const struct matrix4x4 m, const struct matrix4x4 n, struct matrix4x4 *rm)
 {
 	struct matrix4x4 result; // Allow multiply in place
 	for (GLuint col = 0; col < 4; ++col)
@@ -76,14 +101,36 @@ matrix4x4_mult(const struct matrix4x4 m, const struct matrix4x4 n, struct matrix
 	*rm = result;
 }
 
+static void
+matrix4x4_mult_vec4(const struct matrix4x4 m, const vec4_t v, vec4_t rv)
+{
+	vec4_t result;
+	for (GLuint row = 0; row < 4; ++row)
+	{
+		GLdouble dot = 0;
+		for (GLuint i = 0; i < 4; ++i)
+			dot+= m.cols[i][row] * v[i];
+		result[row] = dot;
+	}
+	for (GLuint i = 0; i < 4; ++i)
+		rv[i] = result[i];
+}
+
+static void
+matrix4x4_print(struct matrix4x4 m)
+{
+	for (GLuint row = 0; row < 4; ++row)
+		fprintf(stderr, "[ %4.4g, %4.4g, %4.4g, %4.4g ]\n", m.cols[0][row], m.cols[1][row], m.cols[2][row], m.cols[3][row]);
+}
+
 /* GL */
 static GLenum matrix_mode = -1;
 struct matrix4x4 modelview_matrix = IDENTITY_MATRIX;
 struct matrix4x4 projection_matrix = IDENTITY_MATRIX;
 static GLenum primitive_mode;
-static vec3_t normals[10];
+static vec4_t normals[10];
 static GLuint num_normals;
-static vec3_t vertices[10];
+static vec4_t vertices[10];
 static GLuint num_vertices;
 
 void
@@ -113,6 +160,7 @@ soglNormal3fv(const GLfloat *v)
 		assert(num_normals < number_of(normals));
 		for (GLuint i = 0; i < 3; ++i)
 			normals[num_normals][i] = v[i];
+		normals[num_normals][3] = 0;
 		++num_normals;
 	}
 }
@@ -130,7 +178,25 @@ soglVertex3fv(const GLfloat *v)
 	assert(num_vertices < number_of(vertices));
 	for (GLuint i = 0; i < 3; ++i)
 		vertices[num_vertices][i] = v[i];
+	vertices[num_vertices][3] = 1;
 	++num_vertices;
+}
+
+static void
+soglCheckMatrix(GLenum param, struct matrix4x4 *target)
+{
+	struct matrix4x4 old_m;
+	glGetDoublev(param, old_m.m);
+	for (GLuint col = 0; col < 4; ++col)
+		for (GLuint row = 0; row < 4; ++row)
+			if (fabs(old_m.cols[col][row] - target->cols[col][row]) > 0.00001)
+			{
+				fprintf(stderr, "Matrices not equal at %u,%u: %g vs. %g\n",
+						col, row,
+						old_m.cols[col][row], target->cols[col][row]);
+				*target = old_m;
+				break;
+			}
 }
 
 void
@@ -138,12 +204,25 @@ soglEnd(void)
 {
 	if (primitive_mode == GL_QUADS)
 	{
+		struct matrix4x4 identity = IDENTITY_MATRIX;
+		soglCheckMatrix(GL_MODELVIEW_MATRIX, &identity);
+		soglCheckMatrix(GL_PROJECTION_MATRIX, &identity);
+
 		assert(num_vertices == 4);
 		assert(num_normals == 1);
-		glBegin(GL_QUADS);
-		glNormal3dv(normals[0]);
+		glBegin(primitive_mode);
+		vec4_t world_normal;
+		matrix4x4_mult_vec4(modelview_matrix, normals[0], world_normal);
+		matrix4x4_mult_vec4(projection_matrix, world_normal, world_normal);
+		vec4_norm(world_normal);
+		glNormal3dv(world_normal);
 		for (GLuint i = 0; i < num_vertices; ++i)
-			glVertex3dv(vertices[i]);
+		{
+			vec4_t world_v;
+			matrix4x4_mult_vec4(modelview_matrix, vertices[i], world_v);
+			matrix4x4_mult_vec4(projection_matrix, world_v, world_v);
+			glVertex4dv(world_v);
+		}
 		glEnd();
 	}
 	else
@@ -164,8 +243,16 @@ soglClear(GLbitfield mask)
 void
 soglEnable(GLenum cap)
 {
-	fprintf(stderr, "%s() TODO\n", __FUNCTION__);
-	glEnable(cap);
+	switch (cap)
+	{
+		//case GL_DEPTH_TEST:
+		//case GL_LIGHTING:
+			return;
+
+		default:
+			fprintf(stderr, "%s() TODO\n", __FUNCTION__);
+			glEnable(cap);
+	}
 }
 
 void
@@ -180,23 +267,6 @@ soglMatrixMode(GLenum mode)
 {
 	matrix_mode = mode;
 	glMatrixMode(mode);
-}
-
-static void
-soglCheckMatrix(GLenum param, struct matrix4x4 *target)
-{
-	struct matrix4x4 old_m;
-	glGetDoublev(param, old_m.m);
-	for (GLuint col = 0; col < 4; ++col)
-		for (GLuint row = 0; row < 4; ++row)
-			if (fabs(old_m.cols[col][row] - target->cols[col][row]) > 0.00001)
-			{
-				fprintf(stderr, "Matrices not equal at %u,%u: %g vs. %g\n",
-						col, row,
-						old_m.cols[col][row], target->cols[col][row]);
-				*target = old_m;
-				break;
-			}
 }
 
 void
@@ -219,10 +289,10 @@ soglMultMatrix(const struct matrix4x4 m)
 			glMultMatrixd(m.m);
 			return;
 	}
-	soglCheckMatrix(param, target);
+	//soglCheckMatrix(param, target);
 
-	matrix4x4_mult(*target, m, target);
-	glLoadMatrixd(target->m);
+	matrix4x4_mult_matrix4x4(*target, m, target);
+	//glLoadMatrixd(target->m);
 }
 
 void
