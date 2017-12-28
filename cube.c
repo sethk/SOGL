@@ -37,10 +37,48 @@ drawBox(void)
 }
 
 void
+drawBox2(GLfloat size)
+{
+	glBegin(GL_QUADS);
+    glNormal3f(1.0f, 0.0f, 0.0f);   //N1
+    glVertex3f( size/2, size/2, size/2);   //V2
+    glVertex3f( size/2,-size/2, size/2);   //V1
+    glVertex3f( size/2,-size/2,-size/2);   //V3
+    glVertex3f( size/2, size/2,-size/2);   //V4
+    glNormal3f(0.0f, 0.0f, -1.0f);  //N2
+    glVertex3f( size/2, size/2,-size/2);   //V4
+    glVertex3f( size/2,-size/2,-size/2);   //V3
+    glVertex3f(-size/2,-size/2,-size/2);   //V5
+    glVertex3f(-size/2, size/2,-size/2);   //V6
+    glNormal3f(-1.0f, 0.0f, 0.0f);  //N3
+    glVertex3f(-size/2, size/2,-size/2);   //V6
+    glVertex3f(-size/2,-size/2,-size/2);   //V5
+    glVertex3f(-size/2,-size/2, size/2);   //V7
+    glVertex3f(-size/2, size/2, size/2);   //V8
+    glNormal3f(0.0f, 0.0f, 1.0f);   //N4
+    glVertex3f(-size/2, size/2, size/2);   //V8
+    glVertex3f(-size/2,-size/2, size/2);   //V7
+    glVertex3f( size/2,-size/2, size/2);   //V1
+    glVertex3f( size/2, size/2, size/2);   //V2
+    glNormal3f(0.0f, 1.0f, 0.0f);   //N5
+    glVertex3f(-size/2, size/2,-size/2);   //V6
+    glVertex3f(-size/2, size/2, size/2);   //V8
+    glVertex3f( size/2, size/2, size/2);   //V2
+    glVertex3f( size/2, size/2,-size/2);   //V4
+    glNormal3f(0.0f, -1.0f, 0.0f);  //N6
+    glVertex3f(-size/2,-size/2, size/2);   //V7
+    glVertex3f(-size/2,-size/2,-size/2);   //V5
+    glVertex3f( size/2,-size/2,-size/2);   //V3
+    glVertex3f( size/2,-size/2, size/2);   //V1
+	glEnd();
+}
+
+void
 display(void)
 {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   drawBox();
+  //drawBox2(2);
   glutSwapBuffers();
 }
 
