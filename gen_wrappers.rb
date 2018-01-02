@@ -1,6 +1,10 @@
 #!/usr/bin/env ruby -w
 
-JUST_WRAP = %w{glutDisplayFunc glutKeyboardFunc glutGetWindow glutInitDisplayMode glutInitWindowSize glutMainLoop}
+JUST_WRAP = %w{glutDisplayFunc glutKeyboardFunc glutGetWindow glutInitDisplayMode glutInitWindowSize
+    glutInitWindowPosition glutReshapeFunc glutSolidSphere glutMainLoop glutAddMenuEntry
+    glutAddSubMenu glutCreateMenu glutChangeToMenuEntry glutAttachMenu glutSolidIcosahedron glutSolidTetrahedron
+    glutSolidTorus glutVisibilityFunc glutMotionFunc glutMouseFunc glutSolidDodecahedron glutSolidTeapot
+    glutStrokeCharacter glutStrokeRoman glutWireCube}
 
 fail "usage: #{$0} <prefix> <path>" unless ARGV.length == 2
 prefix = ARGV[0]
@@ -11,12 +15,15 @@ while $stdin.gets
   next unless /^extern (.*) APIENTRY (\w+)\((.+)\) /
   type, name, args = $1, $2, $3
   wrapper_name = name.sub(/^#{prefix}/, "open#{prefix.upcase}")
-  arg_names = args.gsub(/\(\*(\w+)\)\(.*\)/, '\\1')
+  args.gsub!(/\(\*\)/, '(*func)')
+  arg_names = args.gsub(/\(\*(\w*)\)\(.*\)/, '\\1')
   if $-d && arg_names != args
     $stderr.puts "#{args} => #{arg_names}"
   end
   arg_names = arg_names.split(/, /).map do |tokens|
-    tokens.split.last
+    arg_name = tokens.split(/[ *]/).last
+    arg_name = 'func' if arg_name == ''
+    arg_name
   end.select do |arg_name|
     arg_name != 'void'
   end.join(', ')

@@ -14,7 +14,7 @@
 #define srandom srand
 #endif
 #include <math.h>
-#include "sogl.h"
+#include <GLUT/glut.h>
 
 /* Some <math.h> files do not define M_PI... */
 #ifndef M_PI

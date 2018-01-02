@@ -1,7 +1,8 @@
 CFLAGS+= -I. -Wall -Wformat -Wextra -Wno-deprecated -Wno-unused-parameter
 CFLAGS+= -O0 -g -fno-inline
+LDFLAGS+= -framework OpenGL
 
-PROGS = cube n64 flat
+PROGS = cube n64 flat sphere scene glutplane
 all: $(PROGS) $(addprefix opengl_,$(PROGS))
 
 .DELETE_ON_ERROR: wrap_glut.c

@@ -33,7 +33,7 @@ static void (*openGLUTPostOverlayRedisplay)(void) = NULL;
 static void (*openGLUTPostWindowOverlayRedisplay)(int win) = NULL;
 static void (*openGLUTShowOverlay)(void) = NULL;
 static void (*openGLUTHideOverlay)(void) = NULL;
-static int (*openGLUTCreateMenu)(void (*)(int)) = NULL;
+static int (*openGLUTCreateMenu)(void (*func)(int)) = NULL;
 static void (*openGLUTDestroyMenu)(int menu) = NULL;
 static int (*openGLUTGetMenu)(void) = NULL;
 static void (*openGLUTSetMenu)(int menu) = NULL;
@@ -362,6 +362,11 @@ glutInitDisplayMode(unsigned int mode)
 	openGLUTInitDisplayMode(mode);
 }
 void
+glutInitWindowPosition(int x, int y)
+{
+	openGLUTInitWindowPosition(x, y);
+}
+void
 glutInitWindowSize(int width, int height)
 {
 	openGLUTInitWindowSize(width, height);
@@ -376,13 +381,98 @@ glutGetWindow(void)
 {
 	return openGLUTGetWindow();
 }
+int
+glutCreateMenu(void (*func)(int))
+{
+	return openGLUTCreateMenu(func);
+}
+void
+glutAddMenuEntry(const char *label, int value)
+{
+	openGLUTAddMenuEntry(label, value);
+}
+void
+glutAddSubMenu(const char *label, int submenu)
+{
+	openGLUTAddSubMenu(label, submenu);
+}
+void
+glutChangeToMenuEntry(int item, const char *label, int value)
+{
+	openGLUTChangeToMenuEntry(item, label, value);
+}
+void
+glutAttachMenu(int button)
+{
+	openGLUTAttachMenu(button);
+}
 void
 glutDisplayFunc(void (*func)(void))
 {
 	openGLUTDisplayFunc(func);
 }
 void
+glutReshapeFunc(void (*func)(int width, int height))
+{
+	openGLUTReshapeFunc(func);
+}
+void
 glutKeyboardFunc(void (*func)(unsigned char key, int x, int y))
 {
 	openGLUTKeyboardFunc(func);
+}
+void
+glutMouseFunc(void (*func)(int button, int state, int x, int y))
+{
+	openGLUTMouseFunc(func);
+}
+void
+glutMotionFunc(void (*func)(int x, int y))
+{
+	openGLUTMotionFunc(func);
+}
+void
+glutVisibilityFunc(void (*func)(int state))
+{
+	openGLUTVisibilityFunc(func);
+}
+void
+glutStrokeCharacter(void *font, int character)
+{
+	openGLUTStrokeCharacter(font, character);
+}
+void
+glutSolidSphere(GLdouble radius, GLint slices, GLint stacks)
+{
+	openGLUTSolidSphere(radius, slices, stacks);
+}
+void
+glutWireCube(GLdouble size)
+{
+	openGLUTWireCube(size);
+}
+void
+glutSolidTorus(GLdouble innerRadius, GLdouble outerRadius, GLint sides, GLint rings)
+{
+	openGLUTSolidTorus(innerRadius, outerRadius, sides, rings);
+}
+void
+glutSolidDodecahedron(void)
+{
+	openGLUTSolidDodecahedron();
+}
+void
+glutSolidTeapot(GLdouble size)
+{
+	openGLUTSolidTeapot(size);
+}
+void
+glutSolidTetrahedron(void)
+{
+	openGLUTSolidTetrahedron();
+}
+void
+glutSolidIcosahedron(void)
+{
+	openGLUTSolidIcosahedron();
 }

@@ -1,5 +1,8 @@
 /cube
 /n64
-flat
-opengl_*
-sphere
+/flat
+/opengl_*
+/sphere
+/glutplane
+/movelight
+/scene
