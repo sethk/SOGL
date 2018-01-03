@@ -216,11 +216,9 @@ matrix4x4_print(struct matrix4x4 m)
 				m.cols[0][row], m.cols[1][row], m.cols[2][row], m.cols[3][row]);
 }
 
-/* draw */
+/* Render */
 GLIContext opengl_rend;
 GLIFunctionDispatch opengl_disp;
-struct matrix4x4 modelview_matrix = IDENTITY_MATRIX;
-struct matrix4x4 projection_matrix = IDENTITY_MATRIX;
 static const vec4_t origin = {0, 0, 0, 1};
 static vec4_t global_ambient = {0.2, 0.2, 0.2, 1.0};
 static GLuint primitive_index;
@@ -246,7 +244,7 @@ struct light
 };
 
 static void
-draw_push_debug(void)
+render_push_debug(void)
 {
 	debug_save_win = glutGetWindow();
 	assert(debug_save_win != debug_win);
@@ -254,17 +252,17 @@ draw_push_debug(void)
 }
 
 static void
-draw_pop_debug(void)
+render_pop_debug(void)
 {
 	assert(glutGetWindow() == debug_win);
 	openGLUTSetWindow(debug_save_win);
 }
 
 static struct matrix4x4
-draw_get_debug_proj(void)
+render_get_debug_proj(const struct matrix4x4 proj)
 {
 	struct matrix4x4 trans = IDENTITY_MATRIX;
-	GLfloat debug_div = pow(2, debug_zoom);
+	GLfloat debug_div = powf(2, debug_zoom);
 	switch (debug_mode)
 	{
 		case DEBUG_FRONT:
@@ -289,7 +287,7 @@ draw_get_debug_proj(void)
 		case DEBUG_PROJECTION:
 		{
 			struct matrix4x4 scaling = matrix4x4_make_scaling(1.0 / debug_div, 1.0 / debug_div, 1.0 / debug_div);
-			matrix4x4_mult_matrix4x4(scaling, projection_matrix, &trans);
+			matrix4x4_mult_matrix4x4(scaling, proj, &trans);
 			break;
 		}
 		case DEBUG_NMODES:
@@ -299,17 +297,17 @@ draw_get_debug_proj(void)
 }
 
 static struct matrix4x4
-draw_get_debug_trans(void)
+render_get_debug_trans(const struct matrix4x4 modelview, const struct matrix4x4 proj)
 {
 	struct matrix4x4 trans;
-	matrix4x4_mult_matrix4x4(draw_get_debug_proj(), modelview_matrix, &trans);
+	matrix4x4_mult_matrix4x4(render_get_debug_proj(proj), modelview, &trans);
 	return trans;
 }
 
 static void
-draw_axes_debug(void)
+render_axes_debug(const struct matrix4x4 proj)
 {
-	struct matrix4x4 trans = draw_get_debug_proj();
+	struct matrix4x4 trans = render_get_debug_proj(proj);
 
 	glBegin(GL_LINES);
 
@@ -342,7 +340,7 @@ draw_axes_debug(void)
 
 /*
 static void
-draw_frustum_debug(void)
+render_frustum_debug(void)
 {
 	glBegin(GL_LINES);
 	glColor3f(0, 1, 1);
@@ -361,9 +359,9 @@ draw_frustum_debug(void)
 
 /*
 static void
-draw_lights_debug(struct light *lights, GLuint num_lights)
+render_lights_debug(struct light *lights, GLuint num_lights)
 {
-	struct matrix4x4 trans = draw_get_debug_proj();
+	struct matrix4x4 trans = render_get_debug_proj();
 
 	glBegin(GL_LINES);
 	glColor3f(1, 1, 0);
@@ -383,10 +381,16 @@ draw_lights_debug(struct light *lights, GLuint num_lights)
 */
 
 static void
-draw_primitive_debug(GLenum mode, struct vertex *vertices, GLuint num_vertices, struct light *lights, GLuint num_lights)
+render_primitive_debug(const struct matrix4x4 modelview,
+					   const struct matrix4x4 proj,
+					   //GLenum mode,
+					   struct vertex *vertices,
+					   GLuint num_vertices,
+					   struct light *lights,
+					   GLuint num_lights)
 {
-	struct matrix4x4 trans = draw_get_debug_trans();
-	struct matrix4x4 debug_proj = draw_get_debug_proj();
+	struct matrix4x4 trans = render_get_debug_trans(modelview, proj);
+	struct matrix4x4 debug_proj = render_get_debug_proj(proj);
 
 	glBegin(GL_LINE_LOOP);
 	glColor3f(1, 1, 1);
@@ -419,7 +423,7 @@ draw_primitive_debug(GLenum mode, struct vertex *vertices, GLuint num_vertices, 
 		if (lights)
 		{
 			vec3_t world_normal;
-			matrix4x4_mult_vec4(modelview_matrix, vertices[i].norm, world_normal);
+			matrix4x4_mult_vec4(modelview, vertices[i].norm, world_normal);
 			//vec3_print(world_normal);
 			vec3_check_norm(world_normal);
 			//vec3_print(lights[0].dir);
@@ -433,7 +437,7 @@ draw_primitive_debug(GLenum mode, struct vertex *vertices, GLuint num_vertices, 
 			vec3_mult_scalar(lights[0].dir, 0.5, vert_light);
 			vert_light[3] = 1.0;
 			vec4_t world_v;
-			matrix4x4_mult_vec4(modelview_matrix, vertices[i].pos, world_v);
+			matrix4x4_mult_vec4(modelview, vertices[i].pos, world_v);
 			vec3_add(world_v, vert_light, vert_light);
 			matrix4x4_mult_vec4(debug_proj, vert_light, vert_light);
 			glVertex4dv(vert_light);
@@ -449,21 +453,27 @@ draw_primitive_debug(GLenum mode, struct vertex *vertices, GLuint num_vertices, 
 }
 
 static void
-draw_primitive(GLenum mode, struct vertex *vertices, GLuint num_vertices, struct light *lights, GLuint num_lights)
+render_primitive(const struct matrix4x4 modelview,
+				 const struct matrix4x4 proj,
+				 GLenum mode,
+				 struct vertex *vertices,
+				 GLuint num_vertices,
+				 struct light *lights,
+				 GLuint num_lights)
 {
 	if (debug_primitive_index == -1 || primitive_index == (GLuint)debug_primitive_index)
 	{
-		draw_push_debug();
-		draw_primitive_debug(mode, vertices, num_vertices, lights, number_of(lights));
-		draw_pop_debug();
+		render_push_debug();
+		render_primitive_debug(modelview, proj, /*mode,*/ vertices, num_vertices, lights, num_lights);
+		render_pop_debug();
 	}
 
 	opengl_disp.begin(opengl_rend, mode);
 	for (GLuint i = 0; i < num_vertices; ++i)
 	{
 		vec4_t view_v;
-		matrix4x4_mult_vec4(modelview_matrix, vertices[i].pos, view_v);
-		matrix4x4_mult_vec4(projection_matrix, view_v, view_v);
+		matrix4x4_mult_vec4(modelview, vertices[i].pos, view_v);
+		matrix4x4_mult_vec4(proj, view_v, view_v);
 
 		vec4_t color;
 		if (lights)
@@ -473,7 +483,7 @@ draw_primitive(GLenum mode, struct vertex *vertices, GLuint num_vertices, struct
 			vec4_mult_vec4(color, vertices[i].ambient, color);
 
 			vec4_t world_normal;
-			matrix4x4_mult_vec4(modelview_matrix, vertices[i].norm, world_normal);
+			matrix4x4_mult_vec4(modelview, vertices[i].norm, world_normal);
 			for (GLuint light_index = 0; light_index < num_lights; ++light_index)
 			{
 				if (!lights[light_index].enabled)
@@ -504,12 +514,21 @@ draw_primitive(GLenum mode, struct vertex *vertices, GLuint num_vertices, struct
 	opengl_disp.end(opengl_rend);
 
 	++primitive_index;
+
+	render_push_debug();
+	//render_frustum_debug();
+	render_axes_debug(proj);
+	render_pop_debug();
 }
 
 /* GL */
 #include "gl_stubs.c"
 
 static GLenum matrix_mode = GL_MODELVIEW;
+static struct matrix4x4 modelview_stack[32] = {IDENTITY_MATRIX};
+static GLuint modelview_depth = 0;
+static struct matrix4x4 projection_stack[2] = {IDENTITY_MATRIX};
+static GLuint projection_depth = 0;
 static GLenum primitive_mode;
 static vec3_t color = {1, 1, 1};
 static vec3_t normal;
@@ -517,7 +536,7 @@ static vec4_t ambient = {0.2, 0.2, 0.2, 1.0};
 static vec4_t diffuse = {0.8, 0.8, 0.8, 1.0};
 static vec4_t specular = {0, 0, 0, 1};
 static GLfloat shininess = 0;
-static struct vertex vertices[4];
+static struct vertex vertices[8];
 static GLuint num_vertices;
 static bool lighting = false;
 #define DEFAULT_LIGHT { \
@@ -538,11 +557,6 @@ static void
 gl_begin(GLIContext rend, GLenum mode)
 {
 	primitive_mode = mode;
-	if (mode != GL_TRIANGLES && mode != GL_TRIANGLE_STRIP && mode != GL_QUADS && mode != GL_QUAD_STRIP)
-	{
-		fprintf(stderr, "%s() TODO %u\n", __FUNCTION__, mode);
-		return;
-	}
 	num_vertices = 0;
 }
 
@@ -613,38 +627,157 @@ gl_vertex4fv(GLIContext rend, const GLfloat *v)
 	vertices[num_vertices].shininess = shininess;
 	++num_vertices;
 
-	if (((primitive_mode == GL_TRIANGLES || primitive_mode == GL_TRIANGLE_STRIP) && num_vertices == 3) ||
+	if (primitive_mode == GL_POINTS ||
+			((primitive_mode == GL_LINES || primitive_mode == GL_LINE_STRIP) && num_vertices == 2) ||
+			(primitive_mode == GL_TRIANGLE_FAN && num_vertices == 3) ||
+			((primitive_mode == GL_TRIANGLES || primitive_mode == GL_TRIANGLE_STRIP) && num_vertices == 3) ||
 			((primitive_mode == GL_QUADS || primitive_mode == GL_QUAD_STRIP) && num_vertices == 4))
-	{
-		draw_primitive(primitive_mode, vertices, num_vertices, (lighting) ? lights : NULL, number_of(lights));
+		gl_flush_primitive();
+}
 
-		if (primitive_mode == GL_TRIANGLE_STRIP)
-		{
-			bcopy(vertices + 1, vertices, sizeof(vertices[0]) * 2);
-			num_vertices = 2;
-		}
-		else if (primitive_mode == GL_QUAD_STRIP)
-		{
-			bcopy(vertices + 2, vertices, sizeof(vertices[0]) * 2);
-			num_vertices = 2;
-		}
-		else
-			num_vertices = 0;
-	}
+static void
+gl_vertex2d(GLIContext ctx, GLdouble x, GLdouble y)
+{
+    GLdouble v[4] = {x, y, 0, 1.0};
+    gl_vertex4dv(ctx, v);
+}
+
+static void
+gl_vertex2dv(GLIContext ctx, const GLdouble *v)
+{
+	fprintf(stderr, "TODO: vertex2dv()\n");
+}
+
+static void
+gl_vertex2f(GLIContext ctx, GLfloat x, GLfloat y)
+{
+	GLdouble v[4] = {x, y, 0, 1.0};
+	gl_vertex4dv(ctx, v);
+}
+
+static void
+gl_vertex2fv(GLIContext ctx, const GLfloat *v)
+{
+	fprintf(stderr, "TODO: vertex2fv()\n");
+}
+
+static void
+gl_vertex2i(GLIContext ctx, GLint x, GLint y)
+{
+    GLdouble v[4] = {x, y, 0, 1.0};
+	gl_vertex4dv(ctx, v);
+}
+
+static void
+gl_vertex2iv(GLIContext ctx, const GLint *v)
+{
+	GLdouble dv[4] = {v[0], v[1], 0, 1.0};
+    gl_vertex4dv(ctx, dv);
+}
+
+static void
+gl_vertex2s(GLIContext ctx, GLshort x, GLshort y)
+{
+	fprintf(stderr, "TODO: vertex2s()\n");
+}
+
+static void
+gl_vertex2sv(GLIContext ctx, const GLshort *v)
+{
+	fprintf(stderr, "TODO: vertex2sv()\n");
+}
+
+static void
+gl_vertex3d(GLIContext ctx, GLdouble x, GLdouble y, GLdouble z)
+{
+	fprintf(stderr, "TODO: vertex3d()\n");
+}
+
+static void
+gl_vertex3dv(GLIContext ctx, const GLdouble *v)
+{
+	fprintf(stderr, "TODO: vertex3dv()\n");
 }
 
 static void
 gl_vertex3fv(GLIContext rend, const GLfloat *v)
 {
-	GLfloat v4[4] = {v[0], v[1], v[2], 1.0};
-	gl_vertex4fv(rend, v4);
+	GLdouble v4[4] = {v[0], v[1], v[2], 1.0};
+	gl_vertex4dv(rend, v4);
 }
 
 static void
 gl_vertex3f(GLIContext rend, GLfloat x, GLfloat y, GLfloat z)
 {
-	GLfloat v[4] = {x, y, z, 1.0};
-	gl_vertex4fv(rend, v);
+	GLdouble v[4] = {x, y, z, 1.0};
+	gl_vertex4dv(rend, v);
+}
+
+static void
+gl_vertex3i(GLIContext ctx, GLint x, GLint y, GLint z)
+{
+	fprintf(stderr, "TODO: vertex3i()\n");
+}
+
+static void
+gl_vertex3iv(GLIContext ctx, const GLint *v)
+{
+	fprintf(stderr, "TODO: vertex3iv()\n");
+}
+
+static void
+gl_vertex3s(GLIContext ctx, GLshort x, GLshort y, GLshort z)
+{
+	fprintf(stderr, "TODO: vertex3s()\n");
+}
+
+static void
+gl_vertex3sv(GLIContext ctx, const GLshort *v)
+{
+	fprintf(stderr, "TODO: vertex3sv()\n");
+}
+
+static void
+gl_vertex4d(GLIContext ctx, GLdouble x, GLdouble y, GLdouble z, GLdouble w)
+{
+	fprintf(stderr, "TODO: vertex4d()\n");
+}
+
+static void
+gl_vertex4f(GLIContext ctx, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
+{
+	fprintf(stderr, "TODO: vertex4f()\n");
+}
+
+static void
+gl_vertex4fv(GLIContext rend, const GLfloat *v)
+{
+	GLdouble dv[4] = {v[0], v[1], v[2], v[3]};
+	gl_vertex4dv(rend, dv);
+}
+
+static void
+gl_vertex4i(GLIContext ctx, GLint x, GLint y, GLint z, GLint w)
+{
+	fprintf(stderr, "TODO: vertex4i()\n");
+}
+
+static void
+gl_vertex4iv(GLIContext ctx, const GLint *v)
+{
+	fprintf(stderr, "TODO: vertex4iv()\n");
+}
+
+static void
+gl_vertex4s(GLIContext ctx, GLshort x, GLshort y, GLshort z, GLshort w)
+{
+	fprintf(stderr, "TODO: vertex4s()\n");
+}
+
+static void
+gl_vertex4sv(GLIContext ctx, const GLshort *v)
+{
+	fprintf(stderr, "TODO: vertex4sv()\n");
 }
 
 /*
@@ -669,10 +802,19 @@ gl_check_matrix(GLenum param, struct matrix4x4 *target)
 static void
 gl_end(GLIContext rend)
 {
-	draw_push_debug();
-	//draw_frustum_debug();
-	draw_axes_debug();
-	draw_pop_debug();
+    if (primitive_mode == GL_LINE_LOOP || primitive_mode == GL_POLYGON)
+        gl_flush_primitive();
+}
+
+static void
+gl_recti(GLIContext ctx, GLint x1, GLint y1, GLint x2, GLint y2)
+{
+	gl_begin(ctx, GL_QUADS);
+	gl_vertex2i(ctx, x1, y1);
+	gl_vertex2i(ctx, x2, y1);
+	gl_vertex2i(ctx, x2, y2);
+	gl_vertex2i(ctx, x1, y2);
+	gl_end(ctx);
 }
 
 static void
@@ -682,9 +824,9 @@ gl_clear(GLIContext rend, GLbitfield mask)
 		fprintf(stderr, "%s() TODO: 0x%x\n", __FUNCTION__, mask & ~GL_COLOR_BUFFER_BIT);
 	opengl_disp.clear(opengl_rend, mask);
 
-	draw_push_debug();
+	render_push_debug();
 	glClear(mask);
-	draw_pop_debug();
+	render_pop_debug();
 }
 
 static void
@@ -726,7 +868,7 @@ gl_lightfv(GLIContext rend, GLenum light, GLenum pname, const GLfloat *params)
 				lights[light - GL_LIGHT0].diffuse[i] = params[i];
 			break;
 		default:
-			fprintf(stderr, "%s() TODO\n", __FUNCTION__);
+			fprintf(stderr, "%s() TODO 0x%x\n", __FUNCTION__, pname);
 	}
 }
 
@@ -744,10 +886,10 @@ gl_load_identity(GLIContext rend)
 	switch (matrix_mode)
 	{
 		case GL_MODELVIEW:
-			modelview_matrix = identity;
+			modelview_stack[modelview_depth] = identity;
 			break;
 		case GL_PROJECTION:
-			projection_matrix = identity;
+			projection_stack[projection_depth] = identity;
 			break;
 		default:
 			fprintf(stderr, "%s() TODO\n", __FUNCTION__);
@@ -764,10 +906,10 @@ gl_mult_matrixd(GLIContext ctx, const GLdouble *ma)
 	switch (matrix_mode)
 	{
 		case GL_MODELVIEW:
-			target = &modelview_matrix;
+			target = &(modelview_stack[modelview_depth]);
 			break;
 		case GL_PROJECTION:
-			target = &projection_matrix;
+			target = &(projection_stack[projection_depth]);
 			break;
 		default:
 			fprintf(stderr, "%s() TODO\n", __FUNCTION__);
@@ -777,14 +919,61 @@ gl_mult_matrixd(GLIContext ctx, const GLdouble *ma)
 }
 
 static void
-gl_rotatef(GLIContext rend, GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
+gl_push_matrix(GLIContext ctx)
+{
+    switch (matrix_mode)
+	{
+		case GL_MODELVIEW:
+            assert(modelview_depth < number_of(modelview_stack));
+			modelview_stack[modelview_depth + 1] = modelview_stack[modelview_depth];
+			++modelview_depth;
+			break;
+		case GL_PROJECTION:
+			assert(projection_depth < number_of(projection_stack));
+			projection_stack[projection_depth + 1] = projection_stack[projection_depth];
+			++projection_depth;
+			break;
+		default:
+            fprintf(stderr, "%s(): TODO\n", __FUNCTION__);
+			return;
+	}
+}
+
+static void
+gl_pop_matrix(GLIContext ctx)
+{
+	switch (matrix_mode)
+	{
+		case GL_MODELVIEW:
+			assert(modelview_depth > 0);
+			--modelview_depth;
+			break;
+		case GL_PROJECTION:
+			assert(projection_depth > 0);
+			--projection_depth;
+			break;
+		default:
+			fprintf(stderr, "TODO: pop_matrix()\n");
+            return;
+	}
+}
+
+static void
+gl_scalef(GLIContext ctx, GLfloat x, GLfloat y, GLfloat z)
+{
+    struct matrix4x4 m = matrix4x4_make_scaling(x, y, z);
+	gl_mult_matrixd(ctx, m.m);
+}
+
+static void
+gl_rotated(GLIContext rend, GLdouble angle, GLdouble x, GLdouble y, GLdouble z)
 {
 	vec3_t axis = {x, y, z};
 	assert(vec3_length(axis) == 1.0);
 
-	GLfloat angle_rad = angle / (180.0 / M_PI);
-	GLfloat c = cosf(angle_rad);
-	GLfloat s = sinf(angle_rad);
+	GLdouble angle_rad = angle / (180.0 / M_PI);
+	GLdouble c = cos(angle_rad);
+	GLdouble s = sin(angle_rad);
 	struct matrix4x4 m;
 	m.cols[0][0] = x * x * (1 - c) + c;
 	m.cols[0][1] = y * x * (1 - c) + z * s;
@@ -801,6 +990,12 @@ gl_rotatef(GLIContext rend, GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
 	m.cols[3][0] = m.cols[3][1] = m.cols[3][2] = 0;
 	m.cols[3][3] = 1;
 	gl_mult_matrixd(rend, m.m);
+}
+
+static void
+gl_rotatef(GLIContext rend, GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
+{
+    gl_rotated(rend, angle, x, y, z);
 }
 
 static void
@@ -832,9 +1027,9 @@ gl_flush(GLIContext rend)
 	opengl_disp.flush(opengl_rend);
 	primitive_index = 0;
 
-	draw_push_debug();
+	render_push_debug();
 	glFlush();
-	draw_pop_debug();
+	render_pop_debug();
 
 }
 
@@ -844,9 +1039,9 @@ gl_finish(GLIContext rend)
 	opengl_disp.finish(rend);
 	primitive_index = 0;
 
-	draw_push_debug();
+	render_push_debug();
 	glFinish();
-	draw_pop_debug();
+	render_pop_debug();
 }
 
 static void
@@ -931,7 +1126,7 @@ gluLookAt(GLdouble eyeX, GLdouble eyeY, GLdouble eyeZ, GLdouble centerX, GLdoubl
 	for (GLuint i = 0; i < 3; ++i)
 		m.cols[3][i] = 0;
 	m.cols[3][3] = 1;
-	draw_mult_matrix(matrix_mode, m);
+	render_mult_matrix(matrix_mode, m);
 	glTranslatef(-eyeX, -eyeY, -eyeZ);
 }
 
@@ -953,7 +1148,7 @@ gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar)
 	m.cols[2][2] = (zFar + zNear) / (zNear - zFar);
 	m.cols[2][3] = -1;
 	m.cols[3][2] = (2 * zFar * zNear) / (zNear - zFar);
-	draw_mult_matrix(matrix_mode, m);
+	render_mult_matrix(matrix_mode, m);
 }
 */
 
@@ -1049,9 +1244,9 @@ glutSwapBuffers(void)
 	gl_finish(opengl_rend);
 	openGLUTSwapBuffers();
 
-	draw_push_debug();
+	render_push_debug();
 	openGLUTSwapBuffers();
-	draw_pop_debug();
+	render_pop_debug();
 }
 
 void
