@@ -355,31 +355,13 @@ openglut_init(void)
 		err(1, "Could not resolve glutLeaveGameMode()");
 	if (!(openGLUTGameModeGet = dlsym(handle, "glutGameModeGet")))
 		err(1, "Could not resolve glutGameModeGet()");
+	if (!(glutStrokeRoman = dlsym(handle, "glutStrokeRoman")))
+		err(1, "Could not resolve glutStrokeRoman()");
 }
 void
 glutInitDisplayMode(unsigned int mode)
 {
 	openGLUTInitDisplayMode(mode);
-}
-void
-glutInitWindowPosition(int x, int y)
-{
-	openGLUTInitWindowPosition(x, y);
-}
-void
-glutInitWindowSize(int width, int height)
-{
-	openGLUTInitWindowSize(width, height);
-}
-void
-glutMainLoop(void)
-{
-	openGLUTMainLoop();
-}
-int
-glutGetWindow(void)
-{
-	return openGLUTGetWindow();
 }
 int
 glutCreateMenu(void (*func)(int))
@@ -410,11 +392,6 @@ void
 glutDisplayFunc(void (*func)(void))
 {
 	openGLUTDisplayFunc(func);
-}
-void
-glutReshapeFunc(void (*func)(int width, int height))
-{
-	openGLUTReshapeFunc(func);
 }
 void
 glutKeyboardFunc(void (*func)(unsigned char key, int x, int y))

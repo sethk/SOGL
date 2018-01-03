@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby -w
 
-JUST_WRAP = %w{glutDisplayFunc glutKeyboardFunc glutGetWindow glutInitDisplayMode glutInitWindowSize
-    glutInitWindowPosition glutReshapeFunc glutSolidSphere glutMainLoop glutAddMenuEntry
+JUST_WRAP = %w{glutDisplayFunc glutKeyboardFunc glutGetWindow glutInitDisplayMode glutSolidSphere glutAddMenuEntry
     glutAddSubMenu glutCreateMenu glutChangeToMenuEntry glutAttachMenu glutSolidIcosahedron glutSolidTetrahedron
     glutSolidTorus glutVisibilityFunc glutMotionFunc glutMouseFunc glutSolidDodecahedron glutSolidTeapot
     glutStrokeCharacter glutStrokeRoman glutWireCube}
+EXTRA_SYMS = %w{glutStrokeRoman}
 
 fail "usage: #{$0} <prefix> <path>" unless ARGV.length == 2
 prefix = ARGV[0]
@@ -34,6 +34,13 @@ funcs.each do |func|
   puts "static #{func[0]} (*#{func[3]})(#{func[2]}) = NULL;"
 end
 
+def gen_resolve(public_sym, private_sym)
+  puts <<EOT
+\tif (!(#{public_sym} = dlsym(handle, \"#{private_sym}\")))
+\t\terr(1, \"Could not resolve #{private_sym}()\");
+EOT
+end
+
 puts <<EOT
 static void
 open#{prefix}_init(void)
@@ -43,10 +50,10 @@ open#{prefix}_init(void)
 \t\terr(1, "Could not dlopen #{path}");
 EOT
 funcs.each do |func|
-  puts <<EOT
-\tif (!(#{func[3]} = dlsym(handle, \"#{func[1]}\")))
-\t\terr(1, \"Could not resolve #{func[1]}()\");
-EOT
+  gen_resolve(func[3], func[1])
+end
+EXTRA_SYMS.each do |sym|
+  gen_resolve(sym, sym)
 end
 puts "}"
 

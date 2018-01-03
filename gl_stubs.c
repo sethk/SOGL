@@ -349,12 +349,6 @@ gl_depth_range(GLIContext ctx, GLclampd zNear, GLclampd zFar)
 }
 
 static void
-gl_disable(GLIContext ctx, GLenum cap)
-{
-	fprintf(stderr, "TODO: disable()\n");
-}
-
-static void
 gl_disable_client_state(GLIContext ctx, GLenum array)
 {
 	fprintf(stderr, "TODO: disable_client_state()\n");
@@ -1117,21 +1111,9 @@ gl_polygon_stipple(GLIContext ctx, const GLubyte *mask)
 }
 
 static void
-gl_pop_attrib(GLIContext ctx)
-{
-	fprintf(stderr, "TODO: pop_attrib()\n");
-}
-
-static void
 gl_pop_client_attrib(GLIContext ctx)
 {
 	fprintf(stderr, "TODO: pop_client_attrib()\n");
-}
-
-static void
-gl_pop_matrix(GLIContext ctx)
-{
-	fprintf(stderr, "TODO: pop_matrix()\n");
 }
 
 static void
@@ -1147,21 +1129,9 @@ gl_prioritize_textures(GLIContext ctx, GLsizei n, const GLuint *textures, const 
 }
 
 static void
-gl_push_attrib(GLIContext ctx, GLbitfield mask)
-{
-	fprintf(stderr, "TODO: push_attrib()\n");
-}
-
-static void
 gl_push_client_attrib(GLIContext ctx, GLbitfield mask)
 {
 	fprintf(stderr, "TODO: push_client_attrib()\n");
-}
-
-static void
-gl_push_matrix(GLIContext ctx)
-{
-	fprintf(stderr, "TODO: push_matrix()\n");
 }
 
 static void
@@ -1351,12 +1321,6 @@ gl_rectfv(GLIContext ctx, const GLfloat *v1, const GLfloat *v2)
 }
 
 static void
-gl_recti(GLIContext ctx, GLint x1, GLint y1, GLint x2, GLint y2)
-{
-	fprintf(stderr, "TODO: recti()\n");
-}
-
-static void
 gl_rectiv(GLIContext ctx, const GLint *v1, const GLint *v2)
 {
 	fprintf(stderr, "TODO: rectiv()\n");
@@ -1382,21 +1346,9 @@ gl_render_mode(GLIContext ctx, GLenum mode)
 }
 
 static void
-gl_rotated(GLIContext ctx, GLdouble angle, GLdouble x, GLdouble y, GLdouble z)
-{
-	fprintf(stderr, "TODO: rotated()\n");
-}
-
-static void
 gl_scaled(GLIContext ctx, GLdouble x, GLdouble y, GLdouble z)
 {
 	fprintf(stderr, "TODO: scaled()\n");
-}
-
-static void
-gl_scalef(GLIContext ctx, GLfloat x, GLfloat y, GLfloat z)
-{
-	fprintf(stderr, "TODO: scalef()\n");
 }
 
 static void
@@ -1733,132 +1685,6 @@ static void
 gl_tex_sub_image2D(GLIContext ctx, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	fprintf(stderr, "TODO: tex_sub_image2D()\n");
-}
-
-static void
-gl_vertex2d(GLIContext ctx, GLdouble x, GLdouble y)
-{
-	fprintf(stderr, "TODO: vertex2d()\n");
-}
-
-static void
-gl_vertex2dv(GLIContext ctx, const GLdouble *v)
-{
-	fprintf(stderr, "TODO: vertex2dv()\n");
-}
-
-static void
-gl_vertex2f(GLIContext ctx, GLfloat x, GLfloat y)
-{
-	fprintf(stderr, "TODO: vertex2f()\n");
-}
-
-static void
-gl_vertex2fv(GLIContext ctx, const GLfloat *v)
-{
-	fprintf(stderr, "TODO: vertex2fv()\n");
-}
-
-static void
-gl_vertex2i(GLIContext ctx, GLint x, GLint y)
-{
-	fprintf(stderr, "TODO: vertex2i()\n");
-}
-
-static void
-gl_vertex2iv(GLIContext ctx, const GLint *v)
-{
-	fprintf(stderr, "TODO: vertex2iv()\n");
-}
-
-static void
-gl_vertex2s(GLIContext ctx, GLshort x, GLshort y)
-{
-	fprintf(stderr, "TODO: vertex2s()\n");
-}
-
-static void
-gl_vertex2sv(GLIContext ctx, const GLshort *v)
-{
-	fprintf(stderr, "TODO: vertex2sv()\n");
-}
-
-static void
-gl_vertex3d(GLIContext ctx, GLdouble x, GLdouble y, GLdouble z)
-{
-	fprintf(stderr, "TODO: vertex3d()\n");
-}
-
-static void
-gl_vertex3dv(GLIContext ctx, const GLdouble *v)
-{
-	fprintf(stderr, "TODO: vertex3dv()\n");
-}
-
-static void
-gl_vertex3i(GLIContext ctx, GLint x, GLint y, GLint z)
-{
-	fprintf(stderr, "TODO: vertex3i()\n");
-}
-
-static void
-gl_vertex3iv(GLIContext ctx, const GLint *v)
-{
-	fprintf(stderr, "TODO: vertex3iv()\n");
-}
-
-static void
-gl_vertex3s(GLIContext ctx, GLshort x, GLshort y, GLshort z)
-{
-	fprintf(stderr, "TODO: vertex3s()\n");
-}
-
-static void
-gl_vertex3sv(GLIContext ctx, const GLshort *v)
-{
-	fprintf(stderr, "TODO: vertex3sv()\n");
-}
-
-static void
-gl_vertex4d(GLIContext ctx, GLdouble x, GLdouble y, GLdouble z, GLdouble w)
-{
-	fprintf(stderr, "TODO: vertex4d()\n");
-}
-
-static void
-gl_vertex4dv(GLIContext ctx, const GLdouble *v)
-{
-	fprintf(stderr, "TODO: vertex4dv()\n");
-}
-
-static void
-gl_vertex4f(GLIContext ctx, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
-{
-	fprintf(stderr, "TODO: vertex4f()\n");
-}
-
-static void
-gl_vertex4i(GLIContext ctx, GLint x, GLint y, GLint z, GLint w)
-{
-	fprintf(stderr, "TODO: vertex4i()\n");
-}
-
-static void
-gl_vertex4iv(GLIContext ctx, const GLint *v)
-{
-	fprintf(stderr, "TODO: vertex4iv()\n");
-}
-
-static void
-gl_vertex4s(GLIContext ctx, GLshort x, GLshort y, GLshort z, GLshort w)
-{
-	fprintf(stderr, "TODO: vertex4s()\n");
-}
-
-static void
-gl_vertex4sv(GLIContext ctx, const GLshort *v)
-{
-	fprintf(stderr, "TODO: vertex4sv()\n");
 }
 
 static void
