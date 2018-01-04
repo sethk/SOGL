@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby -w
 
-JUST_WRAP = %w{glutDisplayFunc glutKeyboardFunc glutGetWindow glutInitDisplayMode glutSolidSphere glutAddMenuEntry
-    glutAddSubMenu glutCreateMenu glutChangeToMenuEntry glutAttachMenu glutSolidIcosahedron glutSolidTetrahedron
-    glutSolidTorus glutVisibilityFunc glutMotionFunc glutMouseFunc glutSolidDodecahedron glutSolidTeapot
-    glutStrokeCharacter glutStrokeRoman glutWireCube}
+JUST_WRAP = %w{glutDisplayFunc glutKeyboardFunc glutInitDisplayMode glutSolidSphere glutAddMenuEntry glutAddSubMenu
+    glutCreateMenu glutChangeToMenuEntry glutAttachMenu glutSolidIcosahedron glutSolidTetrahedron glutSolidTorus
+    glutVisibilityFunc glutMotionFunc glutMouseFunc glutSolidDodecahedron glutSolidTeapot glutStrokeCharacter
+    glutStrokeRoman glutWireCube}
 EXTRA_SYMS = %w{glutStrokeRoman}
 
 fail "usage: #{$0} <prefix> <path>" unless ARGV.length == 2

@@ -1,4 +1,4 @@
-CFLAGS+= -I. -Wall -Wformat -Wextra -Wno-deprecated -Wno-unused-parameter
+CFLAGS+= -Wall -Wformat -Wextra -Wno-deprecated -Wno-unused-parameter
 CFLAGS+= -O0 -g -fno-inline
 LDFLAGS+= -framework OpenGL
 

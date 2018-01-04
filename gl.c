@@ -9,7 +9,7 @@
 #include <dlfcn.h>
 #include <err.h>
 
-#include "wrap_glut.c"
+#include "wrap_glut.h"
 
 #define number_of(a) (sizeof(a) / sizeof(*(a)))
 
