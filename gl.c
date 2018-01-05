@@ -15,6 +15,8 @@
 
 #define DEBUG_WIN (-5)
 
+#define MAX_PRIMITIVE_VERTICES (8)
+
 typedef GLdouble vec3_t[3];
 typedef GLdouble vec4_t[4];
 struct matrix4x4
@@ -34,7 +36,7 @@ vec3_length(const vec3_t v)
 	GLdouble sum_squares = 0;
 	for (GLuint i = 0; i < 3; ++i)
 		sum_squares+= v[i] * v[i];
-	return sqrtf(sum_squares);
+	return sqrt(sum_squares);
 }
 
 void
@@ -79,6 +81,13 @@ vec4_divide_scalar(const vec4_t v, GLdouble quot, vec4_t rv)
 }
 
 void
+vec3_copy(const vec3_t v, vec3_t rv)
+{
+	for (GLuint i = 0; i < 3; ++i)
+		rv[i] = v[i];
+}
+
+void
 vec4_copy(const vec4_t v, vec4_t rv)
 {
 	for (GLuint i = 0; i < 4; ++i)
@@ -90,6 +99,14 @@ vec4_copy_float(const GLfloat *v, vec4_t rv)
 {
 	for (GLuint i = 0; i < 4; ++i)
 		rv[i] = v[i];
+}
+
+void
+vec3_copy_vec4(const vec3_t v, GLdouble w, vec4_t rv)
+{
+	for (GLuint i = 0; i < 3; ++i)
+		rv[i] = v[i];
+	rv[3] = w;
 }
 
 void
@@ -220,9 +237,11 @@ matrix4x4_print(struct matrix4x4 m)
 
 /* Render */
 int debug_save_win;
+GLIContext debug_rend;
+GLIFunctionDispatch *debug_disp;
 enum {DEBUG_FRONT, DEBUG_LEFT, DEBUG_TOP, DEBUG_PROJECTION, DEBUG_NMODES} debug_mode = 0;
 static GLint debug_primitive_index = -1;
-static GLboolean debug_lighting = GL_FALSE;
+static GLint debug_light_index = -1;
 static GLdouble debug_zoom = 0;
 
 GLIContext opengl_rend;
@@ -230,10 +249,16 @@ GLIFunctionDispatch opengl_disp;
 static const vec4_t origin = {0, 0, 0, 1};
 static GLuint primitive_index;
 
+struct projection
+{
+	struct matrix4x4 matrix;
+	vec4_t world_eye_pos;
+};
+
 struct vertex
 {
 	vec4_t pos;
-	vec4_t norm;
+	vec3_t norm;
 	vec4_t color;
 	vec4_t ambient;
 	vec4_t diffuse;
@@ -245,14 +270,22 @@ static const GLuint max_lights = 8;
 struct lighting
 {
 	vec4_t global_ambient;
-    struct light
+    struct
     {
         GLboolean enabled;
         vec4_t pos;
-        vec3_t dir;
         vec4_t diffuse;
         vec4_t specular;
     } lights[max_lights];
+};
+
+struct shaded_vertex
+{
+	vec4_t world_pos;
+	vec4_t view_pos;
+	vec3_t world_norm;
+	vec3_t light_dirs[max_lights];
+	vec3_t lighting_eye_dir;
 };
 
 static void
@@ -274,7 +307,7 @@ static struct matrix4x4
 render_get_debug_proj(const struct matrix4x4 proj)
 {
 	struct matrix4x4 trans = IDENTITY_MATRIX;
-	GLfloat debug_div = powf(2, debug_zoom);
+	GLfloat debug_div = pow(2, debug_zoom);
 	switch (debug_mode)
 	{
 		case DEBUG_FRONT:
@@ -305,14 +338,6 @@ render_get_debug_proj(const struct matrix4x4 proj)
 		case DEBUG_NMODES:
 			break;
 	}
-	return trans;
-}
-
-static struct matrix4x4
-render_get_debug_trans(const struct matrix4x4 modelview, const struct matrix4x4 proj)
-{
-	struct matrix4x4 trans;
-	matrix4x4_mult_matrix4x4(render_get_debug_proj(proj), modelview, &trans);
 	return trans;
 }
 
@@ -393,21 +418,60 @@ render_lights_debug(struct light *lights, GLuint num_lights)
 */
 
 static void
+render_shade_vertex(const struct matrix4x4 modelview,
+                    const struct projection proj,
+                    const struct vertex vertex,
+                    const struct lighting *lighting,
+                    struct shaded_vertex *shaded)
+{
+	matrix4x4_mult_vec4(modelview, vertex.pos, shaded->world_pos);
+	matrix4x4_mult_vec4(proj.matrix, shaded->world_pos, shaded->view_pos);
+
+	vec4_t norm4;
+	vec3_copy_vec4(vertex.norm, 0, norm4);
+	matrix4x4_mult_vec4(modelview, norm4, norm4);
+	vec3_norm(norm4, shaded->world_norm);
+
+	if (lighting)
+	{
+		for (GLuint i = 0; i < number_of(lighting->lights); ++i)
+		{
+			if (!lighting->lights[i].enabled)
+				continue;
+
+			if (lighting->lights[i].pos[3] == 0)
+				vec3_norm(lighting->lights[i].pos, shaded->light_dirs[i]);
+			else
+			{
+				vec4_t light_dir;
+				vec4_sub(lighting->lights[i].pos, shaded->world_pos, light_dir);
+				vec3_norm(light_dir, shaded->light_dirs[i]);
+			}
+		}
+
+		vec4_t eye_dir4;
+		vec4_sub(proj.world_eye_pos, shaded->world_pos, eye_dir4);
+		vec3_norm(eye_dir4, shaded->lighting_eye_dir);
+	}
+}
+
+static void
 render_primitive_debug(const struct matrix4x4 modelview,
-					   const struct matrix4x4 proj,
-					   GLenum mode,
-					   struct vertex *vertices,
-					   GLuint num_vertices,
+                       const struct projection proj,
+                       GLenum mode,
+                       struct vertex *vertices,
+                       GLuint num_vertices,
                        struct lighting *lighting)
 {
-	struct matrix4x4 trans = render_get_debug_trans(modelview, proj);
-	struct matrix4x4 debug_proj = render_get_debug_proj(proj);
+	struct projection debug_proj;
+	debug_proj.matrix = render_get_debug_proj(proj.matrix);
+	vec4_copy(proj.world_eye_pos, debug_proj.world_eye_pos);
+	struct shaded_vertex shaded_verts[MAX_PRIMITIVE_VERTICES];
 
-	glBegin(GL_LINE_LOOP);
-	glColor3f(1, 1, 1);
+	debug_disp->begin(debug_rend, (mode == GL_POINTS) ? GL_POINTS : GL_LINE_LOOP);
+	debug_disp->color3f(debug_rend, 1, 1, 1);
 	for (GLuint i = 0; i < num_vertices; ++i)
 	{
-		vec4_t view_v;
 		GLuint vert_index;
 		if (mode == GL_QUAD_STRIP && i == 2)
 			vert_index = 3;
@@ -415,140 +479,134 @@ render_primitive_debug(const struct matrix4x4 modelview,
 			vert_index = 2;
 		else
 			vert_index = i;
-		matrix4x4_mult_vec4(trans, vertices[vert_index].pos, view_v);
-		glVertex4dv(view_v);
-	}
-	glEnd();
 
-	glBegin(GL_LINES);
+		render_shade_vertex(modelview,
+		                    debug_proj,
+		                    vertices[vert_index],
+		                    (debug_light_index != -1) ? lighting : NULL,
+		                    &(shaded_verts[vert_index]));
+		debug_disp->vertex4dv(debug_rend, shaded_verts[vert_index].view_pos);
+	}
+	debug_disp->end(debug_rend);
+
+	debug_disp->begin(debug_rend, GL_LINES);
 	for (GLuint i = 0; i < num_vertices; ++i)
 	{
-		glColor3f(0, 1, 1);
-		vec4_t view_v;
-		matrix4x4_mult_vec4(trans, vertices[i].pos, view_v);
-		//fprintf(stderr, "Vertex[%u]: ", i);
-		//vec4_print(view_v);
-		glVertex4dv(view_v);
+		struct shaded_vertex *shaded = &(shaded_verts[i]);
+		debug_disp->color3f(debug_rend, 0, 1, 1);
+		debug_disp->vertex4dv(debug_rend, shaded->view_pos);
 		vec4_t vert_norm;
-		vec3_mult_scalar(vertices[i].norm, 0.5, vert_norm);
+		vec3_mult_scalar(shaded->world_norm, 0.5, vert_norm);
 		vert_norm[3] = 1.0;
-		vec3_add(vertices[i].pos, vert_norm, vert_norm);
-		matrix4x4_mult_vec4(trans, vert_norm, vert_norm);
-		//fprintf(stderr, "Normal[%u]: ", i);
-		//vec4_print(vert_norm);
-		glVertex4dv(vert_norm);
+		vec3_add(shaded->world_pos, vert_norm, vert_norm);
+		matrix4x4_mult_vec4(debug_proj.matrix, vert_norm, vert_norm);
+		debug_disp->vertex4dv(debug_rend, vert_norm);
 
-		if (lighting && debug_lighting)
+		if (lighting && debug_light_index != -1 && lighting->lights[debug_light_index].enabled)
 		{
-			vec3_t world_normal;
-			matrix4x4_mult_vec4(modelview, vertices[i].norm, world_normal);
-			//vec3_print(world_normal);
-			vec3_check_norm(world_normal);
-			//vec3_print(lights[0].dir);
-			vec3_check_norm(lighting->lights[0].dir);
-			//GLdouble cos_theta = vec3_dot(world_normal, lights[0].dir);
-			//fprintf(stderr, "%g\n", cos_theta);
-
-			glColor3f(1, 0.5, 0.5);
-			glVertex4dv(view_v);
+			debug_disp->color3f(debug_rend, 1, 0.5, 0.5);
+			debug_disp->vertex4dv(debug_rend, shaded->view_pos);
 			vec4_t view_light;
-			matrix4x4_mult_vec4(debug_proj, lighting->lights[0].pos, view_light);
-			glVertex4dv(view_light);
+			matrix4x4_mult_vec4(debug_proj.matrix, lighting->lights[debug_light_index].pos, view_light);
+			debug_disp->vertex4dv(debug_rend, view_light);
 
-			glColor3f(1, 1, 0);
-			glVertex4dv(view_v);
+			debug_disp->color3f(debug_rend, 1, 1, 0);
+			debug_disp->vertex4dv(debug_rend, shaded->view_pos);
 			vec4_t vert_light;
-			vec3_mult_scalar(lighting->lights[0].dir, 0.5, vert_light);
+			vec3_mult_scalar(shaded->light_dirs[debug_light_index], 0.5, vert_light);
 			vert_light[3] = 1.0;
-			vec4_t world_v;
-			matrix4x4_mult_vec4(modelview, vertices[i].pos, world_v);
-			vec3_add(world_v, vert_light, vert_light);
-			matrix4x4_mult_vec4(debug_proj, vert_light, vert_light);
-			glVertex4dv(vert_light);
+			vec3_add(shaded->world_pos, vert_light, vert_light);
+			matrix4x4_mult_vec4(debug_proj.matrix, vert_light, vert_light);
+			debug_disp->vertex4dv(debug_rend, vert_light);
+
+			debug_disp->color3f(debug_rend, 0, 1, 0);
+			debug_disp->vertex4dv(debug_rend, shaded->view_pos);
+			vec4_t vert_eye;
+			vec3_mult_scalar(shaded->lighting_eye_dir, 0.5, vert_eye);
+			vert_eye[3] = 1.0;
+			vec3_add(shaded->world_pos, vert_eye, vert_eye);
+			matrix4x4_mult_vec4(debug_proj.matrix, vert_eye, vert_eye);
+			debug_disp->vertex4dv(debug_rend, vert_eye);
 
 		}
 	}
-	glEnd();
+	debug_disp->end(debug_rend);
+
+	render_push_debug();
+	//render_frustum_debug();
+	render_axes_debug(proj.matrix);
+	render_pop_debug();
 }
 
 static void
 render_primitive(const struct matrix4x4 modelview,
-				 const struct matrix4x4 proj,
+				 const struct projection proj,
 				 GLenum mode,
 				 struct vertex *vertices,
 				 GLuint num_vertices,
 				 struct lighting *lighting)
 {
 	if (debug_primitive_index == -1 || primitive_index == (GLuint)debug_primitive_index)
-	{
-		render_push_debug();
 		render_primitive_debug(modelview, proj, mode, vertices, num_vertices, lighting);
-		render_pop_debug();
-	}
 
 	opengl_disp.begin(opengl_rend, mode);
 	for (GLuint i = 0; i < num_vertices; ++i)
 	{
-		vec4_t world_v, view_v;
-		matrix4x4_mult_vec4(modelview, vertices[i].pos, world_v);
-		matrix4x4_mult_vec4(proj, world_v, view_v);
+		struct shaded_vertex shaded;
+		render_shade_vertex(modelview,
+		                    proj,
+		                    vertices[i],
+		                    lighting,
+		                    &shaded);
+
+		//render_shade_pixel(vertices[i], vert_lighting, &color);
 
 		vec4_t color;
 		if (lighting)
 		{
 			// Global ambient
-			bcopy(lighting->global_ambient, color, sizeof(lighting->global_ambient));
-			vec4_mult_vec4(color, vertices[i].ambient, color);
+			vec3_mult_vec3(lighting->global_ambient, vertices[i].ambient, color);
+			color[3] = vertices[i].diffuse[3];
 
-			vec4_t world_normal;
-			matrix4x4_mult_vec4(modelview, vertices[i].norm, world_normal);
-			vec3_check_norm(world_normal);
 			for (GLuint light_index = 0; light_index < number_of(lighting->lights); ++light_index)
 			{
 				if (!lighting->lights[light_index].enabled)
 					continue;
 
-				vec4_t light_dir;
-				if (lighting->lights[light_index].pos[3] == 0)
-				{
-					vec3_norm(lighting->lights[light_index].pos, light_dir);
-					light_dir[3] = 0;
-				}
-				else
-				{
-					vec4_sub(lighting->lights[light_index].pos, world_v, light_dir);
-					vec3_norm(light_dir, light_dir);
-				}
-				GLdouble cos_theta = vec3_dot(world_normal, light_dir);
-				GLdouble mix = fmax(0, cos_theta);
+				GLdouble cos_theta = vec3_dot(shaded.world_norm, shaded.light_dirs[light_index]);
+				GLdouble diff_mix = fmax(0, cos_theta);
 
 				// Diffuse
-				vec4_t diffuse;
-				vec3_mult_scalar(lighting->lights[light_index].diffuse, mix, diffuse);
-				diffuse[3] = 1.0;
-				//vec4_print(diffuse);
-				vec4_mult_vec4(diffuse, vertices[i].diffuse, diffuse);
-				//vec4_print(color);
+				vec3_t diffuse;
+				vec3_mult_scalar(lighting->lights[light_index].diffuse, diff_mix, diffuse);
+				//vec3_print(diffuse);
+				vec3_mult_vec3(diffuse, vertices[i].diffuse, diffuse);
+				//vec3_print(color);
 				vec3_add(color, diffuse, color);
 
 				// Specular
 				//vec4_sub(vertices[i].pos, view
+				vec3_t half_dir;
+				vec3_add(shaded.light_dirs[light_index], shaded.lighting_eye_dir, half_dir);
+				vec3_norm(half_dir, half_dir);
+				GLdouble cos_theta_half = vec3_dot(shaded.world_norm, half_dir);
+				fprintf(stderr, "cos_theta_half = %g\n", cos_theta_half);
+				GLdouble spec_mix = fmax(0, cos_theta_half);
+				vec3_t specular;
+				vec3_mult_scalar(lighting->lights[light_index].specular, spec_mix, specular);
+				vec3_mult_vec3(specular, vertices[i].specular, specular);
+				vec3_print(specular);
+				vec3_add(color, specular, color);
 			}
-			color[3] = vertices[i].diffuse[3];
 		}
 		else
-			bcopy(vertices[i].color, color, sizeof(color));
+			vec4_copy(vertices[i].color, color);
 		opengl_disp.color4dv(opengl_rend, color);
-		opengl_disp.vertex4dv(opengl_rend, view_v);
+		opengl_disp.vertex4dv(opengl_rend, shaded.view_pos);
 	}
 	opengl_disp.end(opengl_rend);
 
 	++primitive_index;
-
-	render_push_debug();
-	//render_frustum_debug();
-	render_axes_debug(proj);
-	render_pop_debug();
 }
 
 /* GL */
@@ -560,13 +618,13 @@ static GLuint modelview_depth = 0;
 static struct matrix4x4 projection_stack[2] = {IDENTITY_MATRIX};
 static GLuint projection_depth = 0;
 static GLenum primitive_mode;
-static vec3_t color = {1, 1, 1};
+static vec4_t color = {1, 1, 1, 1};
 static vec3_t normal;
 static vec4_t ambient = {0.2, 0.2, 0.2, 1.0};
 static vec4_t diffuse = {0.8, 0.8, 0.8, 1.0};
 static vec4_t specular = {0, 0, 0, 1};
 static GLfloat shininess = 0;
-static struct vertex vertices[8];
+static struct vertex vertices[MAX_PRIMITIVE_VERTICES];
 static GLuint num_vertices;
 
 #define DEFAULT_LIGHT {\
@@ -609,17 +667,23 @@ gl_begin(GLIContext rend, GLenum mode)
 }
 
 static void
+gl_color4dv(GLIContext rend, const GLdouble *c)
+{
+	vec4_copy(c, color);
+}
+
+static void
 gl_color3fv(GLIContext rend, const GLfloat *c)
 {
-	for (GLuint i = 0; i < 3; ++i)
-		color[i] = c[i];
+	GLdouble c4[4] = {c[0], c[1], c[2], 1.0};
+	gl_color4dv(rend, c4);
 }
 
 static void
 gl_color3f(GLIContext rend, GLfloat red, GLfloat green, GLfloat blue)
 {
-	GLfloat c[3] = {red, green, blue};
-	glColor3fv(c);
+	GLdouble c[4] = {red, green, blue, 1.0};
+	gl_color4dv(rend, c);
 }
 
 static void
@@ -662,8 +726,14 @@ gl_normal3f(GLIContext rend, GLfloat x, GLfloat y, GLfloat z)
 static void
 gl_flush_primitive(void)
 {
+	struct projection proj;
+	proj.matrix = projection_stack[projection_depth];
+	struct matrix4x4 inv_proj;
+	matrix4x4_invert(proj.matrix, &inv_proj);
+	vec4_t eye_pos = {0, 0, -1, 1};
+	matrix4x4_mult_vec4(inv_proj, eye_pos, proj.world_eye_pos);
 	render_primitive(modelview_stack[modelview_depth],
-					 projection_stack[projection_depth],
+					 proj,
 					 primitive_mode,
 					 vertices,
 					 num_vertices,
@@ -696,14 +766,11 @@ static void
 gl_vertex4dv(GLIContext rend, const GLdouble *v)
 {
 	assert(num_vertices < number_of(vertices));
-	for (GLuint i = 0; i < 4; ++i)
-	{
-		vertices[num_vertices].pos[i] = v[i];
-		vertices[num_vertices].norm[i] = normal[i];
-		vertices[num_vertices].color[i] = color[i];
-		vertices[num_vertices].ambient[i] = ambient[i];
-		vertices[num_vertices].diffuse[i] = diffuse[i];
-	}
+	vec4_copy(v, vertices[num_vertices].pos);
+	vec3_copy(normal, vertices[num_vertices].norm);
+	vec4_copy(color, vertices[num_vertices].color);
+	vec4_copy(ambient, vertices[num_vertices].ambient);
+	vec4_copy(diffuse, vertices[num_vertices].diffuse);
 	vec4_copy(specular, vertices[num_vertices].specular);
 	vertices[num_vertices].shininess = shininess;
 	++num_vertices;
@@ -906,7 +973,7 @@ gl_clear(GLIContext rend, GLbitfield mask)
 	opengl_disp.clear(opengl_rend, mask);
 
 	render_push_debug();
-	glClear(mask);
+	glClear(mask & GL_COLOR_BUFFER_BIT);
 	render_pop_debug();
 }
 
@@ -915,7 +982,6 @@ gl_enable(GLIContext rend, GLenum cap)
 {
 	switch (cap)
 	{
-		//case GL_DEPTH_TEST:
 		case GL_LIGHTING:
 			lighting_enabled = GL_TRUE;
 			break;
@@ -1235,7 +1301,15 @@ gl_swap_APPLE(GLIContext ctx)
 /* GLU */
 /*
 void
-gluLookAt(GLdouble eyeX, GLdouble eyeY, GLdouble eyeZ, GLdouble centerX, GLdouble centerY, GLdouble centerZ, GLdouble upX, GLdouble upY, GLdouble upZ)
+gluLookAt(GLdouble eyeX,
+		  GLdouble eyeY,
+		  GLdouble eyeZ,
+		  GLdouble centerX,
+		  GLdouble centerY,
+		  GLdouble centerZ,
+		  GLdouble upX,
+		  GLdouble upY,
+		  GLdouble upZ)
 {
 	vec3_t forward = {centerX - eyeX, centerY - eyeY, centerZ - eyeZ};
 	vec3_norm(forward, forward);
@@ -1332,6 +1406,17 @@ debug_key(unsigned char key, int x, int y)
 				debug_primitive_index = -1;
 			openGLUTPostWindowRedisplay(main_win);
 			break;
+		case 'l':
+			if (++debug_light_index == max_lights)
+				debug_light_index = -1;
+			openGLUTPostWindowRedisplay(main_win);
+			break;
+		case 'L':
+			if (debug_light_index == -1)
+				debug_light_index = max_lights;
+			--debug_light_index;
+			openGLUTPostWindowRedisplay(main_win);
+			break;
 		case 'z':
 			debug_zoom = fmin(3.0, debug_zoom + 0.1);
 			openGLUTPostWindowRedisplay(main_win);
@@ -1390,12 +1475,16 @@ glutMainLoop(void)
 		openGLUTInitWindowSize(main_win_size.width, main_win_size.height);
 		openGLUTInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
 		debug_win = openGLUTCreateWindow("Debug");
+		CGLContextObj context = CGLGetCurrentContext();
+		debug_rend = context->rend;
+		debug_disp = &(context->disp);
+
 		openGLUTDisplayFunc(display_debug);
 		openGLUTKeyboardFunc(debug_key);
 
-		glMatrixMode(GL_PROJECTION);
-		glOrtho(-1, 1, -1, 1, -10, 10);
-		glMatrixMode(GL_MODELVIEW);
+		//glMatrixMode(GL_PROJECTION);
+		//glOrtho(-1, 1, -1, 1, -10, 10);
+		//glMatrixMode(GL_MODELVIEW);
 		openGLUTSetWindow(main_win);
 	}
 

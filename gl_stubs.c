@@ -187,12 +187,6 @@ gl_color4d(GLIContext ctx, GLdouble red, GLdouble green, GLdouble blue, GLdouble
 }
 
 static void
-gl_color4dv(GLIContext ctx, const GLdouble *v)
-{
-	fprintf(stderr, "TODO: color4dv()\n");
-}
-
-static void
 gl_color4f(GLIContext ctx, GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
 {
 	fprintf(stderr, "TODO: color4f()\n");
