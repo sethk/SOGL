@@ -10,6 +10,8 @@
 #include <err.h>
 
 #include "wrap_glut.h"
+#include "vector.h"
+#include "matrix.h"
 
 #define number_of(a) (sizeof(a) / sizeof(*(a)))
 
@@ -17,238 +19,7 @@
 
 #define MAX_PRIMITIVE_VERTICES (8)
 
-typedef GLdouble vec3_t[3];
-typedef GLdouble vec4_t[4];
-struct matrix4x4
-{
-	union
-	{
-		GLdouble cols[4][4];
-		GLdouble m[16];
-	};
-};
-#define IDENTITY_MATRIX {.cols = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}}
-
-/* Vector */
-static GLdouble
-vec3_length(const vec3_t v)
-{
-	GLdouble sum_squares = 0;
-	for (GLuint i = 0; i < 3; ++i)
-		sum_squares+= v[i] * v[i];
-	return sqrt(sum_squares);
-}
-
-void
-vec3_add(const vec3_t a, const vec3_t b, vec3_t rv)
-{
-	for (GLuint i = 0; i < 3; ++i)
-		rv[i] = a[i] + b[i];
-}
-
-void
-vec3_print(const vec3_t v)
-{
-	fprintf(stderr, "(%g, %g, %g)\n", v[0], v[1], v[2]);
-}
-
-void
-vec3_mult_scalar(const vec3_t v, GLdouble mult, vec3_t rv)
-{
-	for (GLuint i = 0; i < 3; ++i)
-		rv[i] = v[i] * mult;
-}
-
-void
-vec3_mult_vec3(const vec3_t a, const vec3_t b, vec3_t rv)
-{
-	for (GLuint i = 0; i < 3; ++i)
-		rv[i] = a[i] * b[i];
-}
-
-void
-vec3_divide_scalar(const vec3_t v, GLdouble quot, vec3_t rv)
-{
-	for (GLuint i = 0; i < 3; ++i)
-		rv[i] = v[i] / quot;
-}
-
-void
-vec4_divide_scalar(const vec4_t v, GLdouble quot, vec4_t rv)
-{
-	for (GLuint i = 0; i < 4; ++i)
-		rv[i] = v[i] / quot;
-}
-
-void
-vec3_copy(const vec3_t v, vec3_t rv)
-{
-	for (GLuint i = 0; i < 3; ++i)
-		rv[i] = v[i];
-}
-
-void
-vec4_copy(const vec4_t v, vec4_t rv)
-{
-	for (GLuint i = 0; i < 4; ++i)
-		rv[i] = v[i];
-}
-
-void
-vec4_copy_float(const GLfloat *v, vec4_t rv)
-{
-	for (GLuint i = 0; i < 4; ++i)
-		rv[i] = v[i];
-}
-
-void
-vec3_copy_vec4(const vec3_t v, GLdouble w, vec4_t rv)
-{
-	for (GLuint i = 0; i < 3; ++i)
-		rv[i] = v[i];
-	rv[3] = w;
-}
-
-void
-vec3_norm(const vec3_t v, vec3_t rv)
-{
-	vec3_divide_scalar(v, vec3_length(v), rv);
-}
-
-void
-vec3_check_norm(const vec3_t v)
-{
-	GLdouble length = vec3_length(v);
-	if (fabs(1.0 - length) > 1.0e-7)
-	{
-		fprintf(stderr, "Vector not normalized (1.0 - length = %g): ", 1.0 - length);
-		vec3_print(v);
-	}
-}
-
-/* \   \   \     /   /   /
- * +ex +ey +ez -ex -ey -ez
- *  ax  ay  az  ax  ay  az
- *  bx  by  bz  bx  by  bz
- */
-void
-vec3_cross(const vec3_t a, const vec3_t b, vec3_t rv)
-{
-	for (GLuint i = 0; i < 3; ++i)
-		rv[i] = a[(i + 1) % 3] * b[(i + 2) % 3] - a[(i + 2) % 3] * b[(i + 1) % 3];
-}
-
-GLdouble
-vec3_dot(const vec3_t a, const vec3_t b)
-{
-	GLdouble dot = 0;
-	for (GLuint i = 0; i < 3; ++i)
-		dot+= a[i] * b[i];
-	return dot;
-}
-
-GLdouble
-vec4_dot(const vec4_t a, const vec4_t b)
-{
-	GLdouble dot = 0;
-	for (GLuint i = 0; i < 4; ++i)
-		dot+= a[i] * b[i];
-	return dot;
-}
-
-void
-vec4_add(const vec4_t a, const vec4_t b, vec4_t rv)
-{
-	for (GLuint i = 0; i < 4; ++i)
-		rv[i] = a[i] + b[i];
-}
-
-void
-vec4_sub(const vec4_t a, const vec4_t b, vec4_t rv)
-{
-	for (GLuint i = 0; i < 4; ++i)
-		rv[i] = a[i] - b[i];
-}
-
-void
-vec4_mult_vec4(const vec4_t a, const vec4_t b, vec4_t rv)
-{
-	for (GLuint i = 0; i < 4; ++i)
-		rv[i] = a[i] * b[i];
-}
-
-void
-vec4_print(const vec4_t v)
-{
-	fprintf(stderr, "(%g, %g, %g, %g)\n", v[0], v[1], v[2], v[3]);
-}
-
-/* Matrix */
-void
-matrix4x4_copy_linear(const GLdouble *ma, struct matrix4x4 *rm)
-{
-	bcopy(ma, rm->m, sizeof(rm->m));
-}
-
-void
-matrix4x4_mult_matrix4x4(const struct matrix4x4 m, const struct matrix4x4 n, struct matrix4x4 *rm)
-{
-	struct matrix4x4 result; // Allow multiply in place
-	for (GLuint col = 0; col < 4; ++col)
-		for (GLuint row = 0; row < 4; ++row)
-		{
-			GLdouble dot = 0;
-			for (GLuint i = 0; i < 4; ++i)
-				dot+= m.cols[i][row] * n.cols[col][i];
-			result.cols[col][row] = dot;
-		}
-	*rm = result;
-}
-
-void
-matrix4x4_mult_vec4(const struct matrix4x4 m, const vec4_t v, vec4_t rv)
-{
-	vec4_t result;
-	for (GLuint row = 0; row < 4; ++row)
-	{
-		GLdouble dot = 0;
-		for (GLuint i = 0; i < 4; ++i)
-			dot+= m.cols[i][row] * v[i];
-		result[row] = dot;
-	}
-	for (GLuint i = 0; i < 4; ++i)
-		rv[i] = result[i];
-}
-
-struct matrix4x4
-matrix4x4_make_scaling(GLdouble x, GLdouble y, GLdouble z)
-{
-	struct matrix4x4 m = {.cols = {{x, 0, 0, 0}, {0, y, 0, 0}, {0, 0, z, 0}, {0, 0, 0, 1}}};
-	return m;
-}
-
-void
-matrix4x4_print(struct matrix4x4 m)
-{
-	for (GLuint row = 0; row < 4; ++row)
-		fprintf(stderr, "[ %4.4g, %4.4g, %4.4g, %4.4g ]\n",
-				m.cols[0][row], m.cols[1][row], m.cols[2][row], m.cols[3][row]);
-}
-
 /* Render */
-int debug_save_win;
-GLIContext debug_rend;
-GLIFunctionDispatch *debug_disp;
-enum {DEBUG_FRONT, DEBUG_LEFT, DEBUG_TOP, DEBUG_PROJECTION, DEBUG_NMODES} debug_mode = 0;
-static GLint debug_primitive_index = -1;
-static GLint debug_light_index = -1;
-static GLdouble debug_zoom = 0;
-
-GLIContext opengl_rend;
-GLIFunctionDispatch opengl_disp;
-static const vec4_t origin = {0, 0, 0, 1};
-static GLuint primitive_index;
-
 struct projection
 {
 	struct matrix4x4 matrix;
@@ -273,9 +44,10 @@ struct lighting
     struct
     {
         GLboolean enabled;
-        vec4_t pos;
+	    vec4_t ambient;
         vec4_t diffuse;
         vec4_t specular;
+	    vec4_t pos;
     } lights[max_lights];
 };
 
@@ -287,6 +59,37 @@ struct shaded_vertex
 	vec3_t light_dirs[max_lights];
 	vec3_t lighting_eye_dir;
 };
+
+GLIContext opengl_rend;
+GLIFunctionDispatch opengl_disp;
+static const vec4_t origin = {0, 0, 0, 1};
+static GLuint primitive_index;
+
+int debug_save_win;
+GLIContext debug_rend;
+GLIFunctionDispatch *debug_disp;
+enum {DEBUG_FRONT, DEBUG_LEFT, DEBUG_TOP, DEBUG_PROJECTION, DEBUG_NMODES} debug_mode = 0;
+static GLint debug_primitive_index = -1;
+static GLint debug_light_index = -1;
+static GLdouble debug_zoom = 0;
+static struct projection debug_proj;
+
+static void
+render_update_debug_title(void)
+{
+	char title[64];
+	char *mode = NULL;
+	switch (debug_mode)
+	{
+		case DEBUG_FRONT: mode = "Front"; break;
+		case DEBUG_LEFT: mode = "Left"; break;
+		case DEBUG_TOP: mode = "Top"; break;
+		case DEBUG_PROJECTION: mode = "Projection"; break;
+		case DEBUG_NMODES: break;
+	}
+	snprintf(title, sizeof(title), "Debug - %s @ %.0f%%", mode, pow(2, debug_zoom) * 100);
+	glutSetWindowTitle(title);
+}
 
 static void
 render_push_debug(void)
@@ -303,82 +106,80 @@ render_pop_debug(void)
 	glutSetWindow(debug_save_win);
 }
 
-static struct matrix4x4
-render_get_debug_proj(const struct matrix4x4 proj)
+static void
+render_update_debug_proj(const struct projection proj)
 {
-	struct matrix4x4 trans = IDENTITY_MATRIX;
-	GLfloat debug_div = pow(2, debug_zoom);
+	GLfloat scale = pow(2, debug_zoom);
+	struct matrix4x4 scaling = matrix4x4_make_scaling(scale, scale, scale);
 	switch (debug_mode)
 	{
 		case DEBUG_FRONT:
-			trans.cols[0][0] = 1.0 / debug_div;
-			trans.cols[1][1] = 1.0 / debug_div;
-			trans.cols[2][2] = 1.0 / debug_div;
+			debug_proj.matrix = matrix4x4_make_scaling(scale, scale, scale);
 			break;
 		case DEBUG_LEFT:
-			trans.cols[0][2] = 1.0 / debug_div;
-			trans.cols[0][0] = 0;
-			trans.cols[1][1] = 1.0 / debug_div;
-			trans.cols[2][0] = 1.0 / debug_div;
-			trans.cols[2][2] = 0;
+			debug_proj.matrix = matrix4x4_make_rotation(90, 0, 1, 0);
+			debug_proj.matrix = matrix4x4_mult_matrix4x4(debug_proj.matrix, scaling);
 			break;
 		case DEBUG_TOP:
-			trans.cols[0][1] = 1.0 / debug_div;
-			trans.cols[0][0] = 0;
-			trans.cols[1][0] = 1.0 / debug_div;
-			trans.cols[1][1] = 0;
-			trans.cols[2][2] = 1.0 / debug_div;
+			debug_proj.matrix = matrix4x4_make_rotation(90, 1, 0, 0);
+			debug_proj.matrix = matrix4x4_mult_matrix4x4(debug_proj.matrix, scaling);
 			break;
 		case DEBUG_PROJECTION:
 		{
-			struct matrix4x4 scaling = matrix4x4_make_scaling(1.0 / debug_div, 1.0 / debug_div, 1.0 / debug_div);
-			matrix4x4_mult_matrix4x4(scaling, proj, &trans);
+			struct matrix4x4 scaling = matrix4x4_make_scaling(scale, scale, scale);
+			debug_proj.matrix = matrix4x4_mult_matrix4x4(proj.matrix, scaling);
 			break;
 		}
 		case DEBUG_NMODES:
 			break;
 	}
-	return trans;
+	vec4_copy(proj.world_eye_pos, debug_proj.world_eye_pos);
 }
 
 static void
-render_axes_debug(const struct matrix4x4 proj)
+render_axes_debug()
 {
-	struct matrix4x4 trans = render_get_debug_proj(proj);
-
-	glBegin(GL_LINES);
+	debug_disp->begin(debug_rend, GL_LINES);
 
 	vec4_t view_origin;
-	matrix4x4_mult_vec4(trans, origin, view_origin);
+	matrix4x4_mult_vec4(debug_proj.matrix, origin, view_origin);
 
-	glColor3f(1, 1, 1);
-	glVertex4dv(view_origin);
-	vec4_t right = {5, 0, 0, 1};
-	matrix4x4_mult_vec4(trans, right, right);
-	glColor3f(0.5, 0.5, 1);
-	glVertex4dv(right);
+	const GLdouble axes_size = 0.2;
+	debug_disp->color3f(debug_rend, 1, 1, 1);
+	debug_disp->vertex4dv(debug_rend, view_origin);
+	vec4_t right = {axes_size, 0, 0, 1};
+	matrix4x4_mult_vec4(debug_proj.matrix, right, right);
+	debug_disp->color3f(debug_rend, 0.5, 0.5, 1);
+	debug_disp->vertex4dv(debug_rend, right);
 
-	glColor3f(1, 1, 1);
-	glVertex4dv(view_origin);
-	vec4_t up = {0, 5, 0, 1};
-	matrix4x4_mult_vec4(trans, up, up);
-	glColor3f(1.0, 0.5, 0.5);
-	glVertex4dv(up);
+	debug_disp->color3f(debug_rend, 1, 1, 1);
+	debug_disp->vertex4dv(debug_rend, view_origin);
+	vec4_t up = {0, axes_size, 0, 1};
+	matrix4x4_mult_vec4(debug_proj.matrix, up, up);
+	debug_disp->color3f(debug_rend, 1.0, 0.5, 0.5);
+	debug_disp->vertex4dv(debug_rend, up);
 
-	glColor3f(1, 1, 1);
-	glVertex4dv(view_origin);
-	vec4_t forward = {0, 0, 5, 1};
-	matrix4x4_mult_vec4(trans, forward, forward);
-	glColor3f(0.5, 1, 0.5);
-	glVertex4dv(forward);
+	debug_disp->color3f(debug_rend, 1, 1, 1);
+	debug_disp->vertex4dv(debug_rend, view_origin);
+	vec4_t forward = {0, 0, axes_size, 1};
+	matrix4x4_mult_vec4(debug_proj.matrix, forward, forward);
+	debug_disp->color3f(debug_rend, 0.5, 1, 0.5);
+	debug_disp->vertex4dv(debug_rend, forward);
 
-	glEnd();
+	debug_disp->end(debug_rend);
 }
 
-/*
 static void
-render_frustum_debug(void)
+render_frustum_debug(struct projection proj)
 {
+	debug_disp->point_size(debug_rend, 5);
+	debug_disp->begin(debug_rend, GL_POINTS);
+	debug_disp->color3f(debug_rend, 0, 1, 0);
+	vec4_t eye_pos;
+	matrix4x4_mult_vec4(debug_proj.matrix, proj.world_eye_pos, eye_pos);
+	debug_disp->vertex4dv(debug_rend, eye_pos);
+	debug_disp->end(debug_rend);
+	/*
 	glBegin(GL_LINES);
 	glColor3f(0, 1, 1);
 	vec4_t edge = {-1, -1, -1, 1};
@@ -391,8 +192,8 @@ render_frustum_debug(void)
 	matrix4x4_mult_vec4(trans, edge, trans_edge);
 	glVertex3dv(trans_edge);
 	glEnd();
+	 */
 }
-*/
 
 /*
 static void
@@ -463,9 +264,7 @@ render_primitive_debug(const struct matrix4x4 modelview,
                        GLuint num_vertices,
                        struct lighting *lighting)
 {
-	struct projection debug_proj;
-	debug_proj.matrix = render_get_debug_proj(proj.matrix);
-	vec4_copy(proj.world_eye_pos, debug_proj.world_eye_pos);
+	render_update_debug_proj(proj);
 	struct shaded_vertex shaded_verts[MAX_PRIMITIVE_VERTICES];
 
 	debug_disp->begin(debug_rend, (mode == GL_POINTS) ? GL_POINTS : GL_LINE_LOOP);
@@ -532,10 +331,8 @@ render_primitive_debug(const struct matrix4x4 modelview,
 	}
 	debug_disp->end(debug_rend);
 
-	render_push_debug();
-	//render_frustum_debug();
-	render_axes_debug(proj.matrix);
-	render_pop_debug();
+	render_axes_debug();
+	render_frustum_debug(proj);
 }
 
 static void
@@ -573,10 +370,14 @@ render_primitive(const struct matrix4x4 modelview,
 				if (!lighting->lights[light_index].enabled)
 					continue;
 
-				GLdouble cos_theta = vec3_dot(shaded.world_norm, shaded.light_dirs[light_index]);
-				GLdouble diff_mix = fmax(0, cos_theta);
+				// Ambient
+				vec3_t ambient;
+				vec3_mult_vec3(lighting->lights[light_index].ambient, vertices[i].ambient, ambient);
+				vec3_add(color, ambient, color);
 
 				// Diffuse
+				GLdouble cos_theta = vec3_dot(shaded.world_norm, shaded.light_dirs[light_index]);
+				GLdouble diff_mix = fmax(0, cos_theta);
 				vec3_t diffuse;
 				vec3_mult_scalar(lighting->lights[light_index].diffuse, diff_mix, diffuse);
 				//vec3_print(diffuse);
@@ -585,17 +386,17 @@ render_primitive(const struct matrix4x4 modelview,
 				vec3_add(color, diffuse, color);
 
 				// Specular
-				//vec4_sub(vertices[i].pos, view
 				vec3_t half_dir;
 				vec3_add(shaded.light_dirs[light_index], shaded.lighting_eye_dir, half_dir);
 				vec3_norm(half_dir, half_dir);
 				GLdouble cos_theta_half = vec3_dot(shaded.world_norm, half_dir);
-				fprintf(stderr, "cos_theta_half = %g\n", cos_theta_half);
-				GLdouble spec_mix = fmax(0, cos_theta_half);
+				//fprintf(stderr, "cos_theta_half = %g\n", cos_theta_half);
+				GLdouble spec_mix = pow(fmax(0, cos_theta_half), vertices[i].shininess);
+				//fprintf(stderr, "spec_mix = %g\n", spec_mix);
 				vec3_t specular;
 				vec3_mult_scalar(lighting->lights[light_index].specular, spec_mix, specular);
 				vec3_mult_vec3(specular, vertices[i].specular, specular);
-				vec3_print(specular);
+				//vec3_print(specular);
 				vec3_add(color, specular, color);
 			}
 		}
@@ -613,9 +414,9 @@ render_primitive(const struct matrix4x4 modelview,
 #include "gl_stubs.c"
 
 static GLenum matrix_mode = GL_MODELVIEW;
-static struct matrix4x4 modelview_stack[32] = {IDENTITY_MATRIX};
+static struct matrix4x4 modelview_stack[32] = {IDENTITY_MATRIX4X4};
 static GLuint modelview_depth = 0;
-static struct matrix4x4 projection_stack[2] = {IDENTITY_MATRIX};
+static struct matrix4x4 projection_stack[2] = {IDENTITY_MATRIX4X4};
 static GLuint projection_depth = 0;
 static GLenum primitive_mode;
 static vec4_t color = {1, 1, 1, 1};
@@ -729,7 +530,8 @@ gl_flush_primitive(void)
 	struct projection proj;
 	proj.matrix = projection_stack[projection_depth];
 	struct matrix4x4 inv_proj;
-	matrix4x4_invert(proj.matrix, &inv_proj);
+	inv_proj = matrix4x4_invert(proj.matrix);
+	matrix4x4_check_inverse(proj.matrix, inv_proj);
 	vec4_t eye_pos = {0, 0, -1, 1};
 	matrix4x4_mult_vec4(inv_proj, eye_pos, proj.world_eye_pos);
 	render_primitive(modelview_stack[modelview_depth],
@@ -972,9 +774,7 @@ gl_clear(GLIContext rend, GLbitfield mask)
 		fprintf(stderr, "%s() TODO: 0x%x\n", __FUNCTION__, mask & ~GL_COLOR_BUFFER_BIT);
 	opengl_disp.clear(opengl_rend, mask);
 
-	render_push_debug();
-	glClear(mask & GL_COLOR_BUFFER_BIT);
-	render_pop_debug();
+	debug_disp->clear(debug_rend, mask & GL_COLOR_BUFFER_BIT);
 }
 
 static void
@@ -1047,18 +847,18 @@ gl_lightfv(GLIContext rend, GLenum light, GLenum pname, const GLfloat *params)
 {
 	switch (pname)
 	{
+		case GL_AMBIENT:
+			vec4_copy_float(params, lighting.lights[light - GL_LIGHT0].ambient);
+			break;
+		case GL_DIFFUSE:
+			vec4_copy_float(params, lighting.lights[light - GL_LIGHT0].diffuse);
 		case GL_POSITION:
 		{
 			vec4_t pos;
-			for (GLuint i = 0; i < 4; ++i)
-				pos[i] = params[i];
+			vec4_copy_float(params, pos);
 			matrix4x4_mult_vec4(modelview_stack[modelview_depth], pos, lighting.lights[light - GL_LIGHT0].pos);
 			break;
 		}
-		case GL_DIFFUSE:
-			for (GLuint i = 0; i < 4; ++i)
-				lighting.lights[light - GL_LIGHT0].diffuse[i] = params[i];
-			break;
 		default:
 			fprintf(stderr, "%s() TODO 0x%x\n", __FUNCTION__, pname);
 	}
@@ -1074,7 +874,7 @@ gl_matrix_mode(GLIContext rend, GLenum mode)
 static void
 gl_load_identity(GLIContext rend)
 {
-	struct matrix4x4 identity = IDENTITY_MATRIX;
+	struct matrix4x4 identity = IDENTITY_MATRIX4X4;
 	switch (matrix_mode)
 	{
 		case GL_MODELVIEW:
@@ -1107,7 +907,7 @@ gl_mult_matrixd(GLIContext ctx, const GLdouble *ma)
 			fprintf(stderr, "%s() TODO\n", __FUNCTION__);
 			return;
 	}
-	matrix4x4_mult_matrix4x4(*target, m, target);
+	*target = matrix4x4_mult_matrix4x4(*target, m);
 }
 
 static void
@@ -1160,27 +960,7 @@ gl_scalef(GLIContext ctx, GLfloat x, GLfloat y, GLfloat z)
 static void
 gl_rotated(GLIContext rend, GLdouble angle, GLdouble x, GLdouble y, GLdouble z)
 {
-	vec3_t axis = {x, y, z};
-	assert(vec3_length(axis) == 1.0);
-
-	GLdouble angle_rad = angle / (180.0 / M_PI);
-	GLdouble c = cos(angle_rad);
-	GLdouble s = sin(angle_rad);
-	struct matrix4x4 m;
-	m.cols[0][0] = x * x * (1 - c) + c;
-	m.cols[0][1] = y * x * (1 - c) + z * s;
-	m.cols[0][2] = x * z * (1 - c) - y * s;
-	m.cols[0][3] = 0;
-	m.cols[1][0] = x * y * (1 - c) - z * s;
-	m.cols[1][1] = y * y * (1 - c) + c;
-	m.cols[1][2] = y * z * (1 - c) + x * s;
-	m.cols[1][3] = 0;
-	m.cols[2][0] = x * z * (1 - c) + y * s;
-	m.cols[2][1] = y * z * (1 - c) - x * s;
-	m.cols[2][2] = z * z * (1 - c) + c;
-	m.cols[2][3] = 0;
-	m.cols[3][0] = m.cols[3][1] = m.cols[3][2] = 0;
-	m.cols[3][3] = 1;
+	struct matrix4x4 m = matrix4x4_make_rotation(angle, x, y, z);
 	gl_mult_matrixd(rend, m.m);
 }
 
@@ -1193,7 +973,7 @@ gl_rotatef(GLIContext rend, GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
 static void
 gl_translated(GLIContext rend, GLdouble x, GLdouble y, GLdouble z)
 {
-	struct matrix4x4 m = IDENTITY_MATRIX;
+	struct matrix4x4 m = IDENTITY_MATRIX4X4;
 	m.cols[3][0] = x;
 	m.cols[3][1] = y;
 	m.cols[3][2] = z;
@@ -1219,9 +999,7 @@ gl_flush(GLIContext rend)
 	opengl_disp.flush(opengl_rend);
 	primitive_index = 0;
 
-	render_push_debug();
-	glFlush();
-	render_pop_debug();
+	debug_disp->flush(debug_rend);
 
 }
 
@@ -1231,9 +1009,7 @@ gl_finish(GLIContext rend)
 	opengl_disp.finish(rend);
 	primitive_index = 0;
 
-	render_push_debug();
-	glFinish();
-	render_pop_debug();
+	debug_disp->finish(debug_rend);
 }
 
 static void
@@ -1280,9 +1056,7 @@ gl_viewport(GLIContext rend, GLint x, GLint y, GLsizei width, GLsizei height)
 	fprintf(stderr, "%s() TODO\n", __FUNCTION__);
 	opengl_disp.viewport(opengl_rend, x, y, width, height);
 
-	render_push_debug();
-	glViewport(x, y, width, height);
-	render_pop_debug();
+	debug_disp->viewport(debug_rend, x, y, width, height);
 }
 
 static void
@@ -1397,35 +1171,34 @@ debug_key(unsigned char key, int x, int y)
 	{
 		case '\t':
 			debug_mode = (debug_mode + 1) % DEBUG_NMODES;
-			openGLUTPostWindowRedisplay(main_win);
 			break;
 		case 'p':
 			if (debug_primitive_index < 12)
 				++debug_primitive_index;
 			else
 				debug_primitive_index = -1;
-			openGLUTPostWindowRedisplay(main_win);
 			break;
 		case 'l':
 			if (++debug_light_index == max_lights)
 				debug_light_index = -1;
-			openGLUTPostWindowRedisplay(main_win);
 			break;
 		case 'L':
 			if (debug_light_index == -1)
 				debug_light_index = max_lights;
 			--debug_light_index;
-			openGLUTPostWindowRedisplay(main_win);
 			break;
 		case 'z':
 			debug_zoom = fmin(3.0, debug_zoom + 0.1);
-			openGLUTPostWindowRedisplay(main_win);
 			break;
 		case 'Z':
-			debug_zoom = fmax(-3.0, debug_zoom - 0.1);
-			openGLUTPostWindowRedisplay(main_win);
+			debug_zoom = fmax(-6.0, debug_zoom - 0.1);
 			break;
+		default:
+			return;
 	}
+
+	render_update_debug_title();
+	openGLUTPostWindowRedisplay(main_win);
 }
 
 static void
@@ -1475,6 +1248,7 @@ glutMainLoop(void)
 		openGLUTInitWindowSize(main_win_size.width, main_win_size.height);
 		openGLUTInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
 		debug_win = openGLUTCreateWindow("Debug");
+		render_update_debug_title();
 		CGLContextObj context = CGLGetCurrentContext();
 		debug_rend = context->rend;
 		debug_disp = &(context->disp);
@@ -1482,9 +1256,9 @@ glutMainLoop(void)
 		openGLUTDisplayFunc(display_debug);
 		openGLUTKeyboardFunc(debug_key);
 
-		//glMatrixMode(GL_PROJECTION);
-		//glOrtho(-1, 1, -1, 1, -10, 10);
-		//glMatrixMode(GL_MODELVIEW);
+		glMatrixMode(GL_PROJECTION);
+		glOrtho(-1, 1, -1, 1, -10, 10);
+		glMatrixMode(GL_MODELVIEW);
 		openGLUTSetWindow(main_win);
 	}
 

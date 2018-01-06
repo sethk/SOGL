@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.9)
 project(SOGL)
 
-add_compile_options(-Wall -Wformat -Wextra -Wno-deprecated -Wno-unused-parameter)
+add_compile_options(-Werror -Wall -Wformat -Wextra -Wno-deprecated -Wno-unused-parameter)
 add_compile_options(-O0 -fno-inline)
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
@@ -16,7 +16,7 @@ add_custom_command(
 )
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-set(SOGL_SOURCES gl.c wrap_glut.h)
+set(SOGL_SOURCES vector.c matrix.c gl.c wrap_glut.h)
 function(sogl_targets name)
     add_executable(${name} ${name}.c ${SOGL_SOURCES})
     add_executable(opengl_${name} ${name}.c)
@@ -31,3 +31,4 @@ sogl_targets(movelight)
 sogl_targets(sphere)
 sogl_targets(scene)
 sogl_targets(glutplane)
+add_executable(matrix_test matrix_test.c vector.c matrix.c)
