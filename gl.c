@@ -1244,7 +1244,7 @@ gl_ortho(GLIContext rend, GLdouble left, GLdouble right, GLdouble bottom, GLdoub
 	bzero(&m, sizeof(m));
 	m.cols[0][0] = 2.0 / width;
 	m.cols[1][1] = 2.0 / height;
-	m.cols[2][2] = 2.0 / depth;
+	m.cols[2][2] = -2.0 / depth;
 	m.cols[3][0] = -(right + left) / width;
 	m.cols[3][1] = -(top + bottom) / height;
 	m.cols[3][2] = -(zFar + zNear) / depth;

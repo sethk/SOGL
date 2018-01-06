@@ -2,7 +2,7 @@
 #include <math.h>
 
 GLfloat light_diffuse[] = {1.0, 0.0, 0.0, 1.0};  /* Red diffuse light. */
-GLfloat light_position[] = {0.0, 0.0, -1.0, 0.0};
+GLfloat light_position[] = {0.0, 0.0, 1.0, 0.0};
 GLfloat heading = 0;
 
 void
@@ -17,7 +17,7 @@ display(void)
 	glRotatef(heading, 0, 1, 0);
 
 	glBegin(GL_QUADS);
-	glNormal3f(0, 0, -1);
+	glNormal3f(0, 0, 1);
 	glVertex3f(-1, -1, 0);
 	glVertex3f(-1, 1, 0);
 	glVertex3f(1, 1, 0);
