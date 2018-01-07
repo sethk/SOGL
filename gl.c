@@ -139,10 +139,8 @@ render_update_debug_proj(const struct projection proj)
 			debug_proj.matrix = matrix4x4_mult_matrix4x4(debug_proj.matrix, scaling);
 			break;
 		case DEBUG_PROJECTION:
-		{
-			debug_proj.matrix = matrix4x4_mult_matrix4x4(proj.matrix, scaling);
+			debug_proj.matrix = matrix4x4_mult_matrix4x4(scaling, proj.matrix);
 			break;
-		}
 		case DEBUG_NMODES:
 			break;
 	}
