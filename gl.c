@@ -772,7 +772,7 @@ gl_recti(GLIContext ctx, GLint x1, GLint y1, GLint x2, GLint y2)
 static void
 gl_clear(GLIContext rend, GLbitfield mask)
 {
-	if (mask & ~GL_COLOR_BUFFER_BIT)
+	if (mask & ~(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT))
 		fprintf(stderr, "%s() TODO: 0x%x\n", __FUNCTION__, mask & ~GL_COLOR_BUFFER_BIT);
 	opengl_disp.clear(opengl_rend, mask);
 
@@ -793,7 +793,8 @@ gl_enable(GLIContext rend, GLenum cap)
 			break;
 
 		default:
-			fprintf(stderr, "%s() TODO 0x%x\n", __FUNCTION__, cap);
+			if (cap != GL_DEPTH_TEST)
+				fprintf(stderr, "%s() TODO 0x%x\n", __FUNCTION__, cap);
 			opengl_disp.enable(opengl_rend, cap);
 	}
 }
@@ -812,7 +813,8 @@ gl_disable(GLIContext ctx, GLenum cap)
 			break;
 
 		default:
-			fprintf(stderr, "%s() TODO 0x%x\n", __FUNCTION__, cap);
+			if (cap != GL_DEPTH_TEST)
+				fprintf(stderr, "%s() TODO 0x%x\n", __FUNCTION__, cap);
 			opengl_disp.disable(opengl_rend, cap);
 	}
 }
@@ -1059,7 +1061,6 @@ gl_frustum(GLIContext rend, GLdouble left, GLdouble right, GLdouble bottom, GLdo
 static void
 gl_viewport(GLIContext rend, GLint x, GLint y, GLsizei width, GLsizei height)
 {
-	fprintf(stderr, "%s() TODO\n", __FUNCTION__);
 	opengl_disp.viewport(opengl_rend, x, y, width, height);
 
 	debug_disp->viewport(debug_rend, x, y, width, height);
