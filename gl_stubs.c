@@ -325,12 +325,6 @@ gl_delete_textures(GLIContext ctx, GLsizei n, const GLuint *textures)
 }
 
 static void
-gl_depth_func(GLIContext ctx, GLenum func)
-{
-	fprintf(stderr, "TODO: depth_func()\n");
-}
-
-static void
 gl_depth_mask(GLIContext ctx, GLboolean flag)
 {
 	fprintf(stderr, "TODO: depth_mask()\n");

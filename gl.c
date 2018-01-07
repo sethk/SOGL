@@ -77,13 +77,13 @@ GLIFunctionDispatch *debug_disp;
 enum {DEBUG_FRONT, DEBUG_LEFT, DEBUG_TOP, DEBUG_PROJECTION, DEBUG_NMODES} debug_mode = 0;
 static GLint debug_primitive_index = -1;
 static GLint debug_light_index = -1;
+static GLboolean debug_color = GL_FALSE;
 static GLdouble debug_zoom = 0;
 static struct projection debug_proj;
 
 static void
 render_update_debug_title(void)
 {
-	char title[64];
 	char *mode = NULL;
 	switch (debug_mode)
 	{
@@ -93,7 +93,15 @@ render_update_debug_title(void)
 		case DEBUG_PROJECTION: mode = "Projection"; break;
 		case DEBUG_NMODES: break;
 	}
-	snprintf(title, sizeof(title), "Debug - %s @ %.0f%%", mode, pow(2, debug_zoom) * 100);
+	char title[64];
+	size_t len;
+	len = snprintf(title, sizeof(title), "Debug - %s @ %.0f%%", mode, pow(2, debug_zoom) * 100);
+	if (debug_light_index != -1)
+		len+= snprintf(title + len, sizeof(title) - len, ", Light %u", debug_light_index);
+	if (debug_primitive_index != -1)
+		len+= snprintf(title + len, sizeof(title) - len, ", Primitive %u", debug_primitive_index);
+	if (debug_color)
+		len+= snprintf(title + len, sizeof(title) - len, ", Color");
 	glutSetWindowTitle(title);
 }
 
@@ -184,6 +192,7 @@ render_frustum_debug(struct projection proj)
 	matrix4x4_mult_vec4(debug_proj.matrix, proj.world_eye_pos, eye_pos);
 	debug_disp->vertex4dv(debug_rend, eye_pos);
 	debug_disp->end(debug_rend);
+	debug_disp->point_size(debug_rend, 1);
 	/*
 	glBegin(GL_LINES);
 	glColor3f(0, 1, 1);
@@ -262,6 +271,57 @@ render_shade_vertex(const struct modelview modelview,
 }
 
 static void
+render_shade_pixel(const struct vertex vertex,
+                   const struct shaded_vertex shaded,
+                   const struct lighting *lighting,
+                   vec4_t color)
+{
+	if (lighting)
+	{
+		// Global ambient
+		vec3_mult_vec3(lighting->global_ambient, vertex.ambient, color);
+		color[3] = vertex.diffuse[3];
+
+		for (GLuint light_index = 0; light_index < number_of(lighting->lights); ++light_index)
+		{
+			if (!lighting->lights[light_index].enabled)
+				continue;
+
+			// Ambient
+			vec3_t ambient;
+			vec3_mult_vec3(lighting->lights[light_index].ambient, vertex.ambient, ambient);
+			vec3_add(color, ambient, color);
+
+			// Diffuse
+			GLdouble cos_theta = vec3_dot(shaded.world_norm, shaded.light_dirs[light_index]);
+			GLdouble diff_mix = fmax(0, cos_theta);
+			vec3_t diffuse;
+			vec3_mult_scalar(lighting->lights[light_index].diffuse, diff_mix, diffuse);
+			//vec3_print(diffuse);
+			vec3_mult_vec3(diffuse, vertex.diffuse, diffuse);
+			//vec3_print(color);
+			vec3_add(color, diffuse, color);
+
+			// Specular
+			vec3_t half_dir;
+			vec3_add(shaded.light_dirs[light_index], shaded.lighting_eye_dir, half_dir);
+			vec3_norm(half_dir, half_dir);
+			GLdouble cos_theta_half = vec3_dot(shaded.world_norm, half_dir);
+			//fprintf(stderr, "cos_theta_half = %g\n", cos_theta_half);
+			GLdouble spec_mix = pow(fmax(0, cos_theta_half), vertex.shininess);
+			//fprintf(stderr, "spec_mix = %g\n", spec_mix);
+			vec3_t specular;
+			vec3_mult_scalar(lighting->lights[light_index].specular, spec_mix, specular);
+			vec3_mult_vec3(specular, vertex.specular, specular);
+			//vec3_print(specular);
+			vec3_add(color, specular, color);
+		}
+	}
+	else
+		vec4_copy(vertex.color, color);
+}
+
+static void
 render_primitive_debug(const struct modelview modelview,
                        const struct projection proj,
                        GLenum mode,
@@ -272,26 +332,30 @@ render_primitive_debug(const struct modelview modelview,
 	render_update_debug_proj(proj);
 	struct shaded_vertex shaded_verts[MAX_PRIMITIVE_VERTICES];
 
-	debug_disp->begin(debug_rend, (mode == GL_POINTS) ? GL_POINTS : GL_LINE_LOOP);
-	debug_disp->color3f(debug_rend, 1, 1, 1);
+	debug_disp->polygon_mode(debug_rend, GL_FRONT_AND_BACK, GL_LINE);
+	debug_disp->begin(debug_rend, mode);
 	for (GLuint i = 0; i < num_vertices; ++i)
 	{
-		GLuint vert_index;
-		if (mode == GL_QUAD_STRIP && i == 2)
-			vert_index = 3;
-		else if (mode == GL_QUAD_STRIP && i == 3)
-			vert_index = 2;
-		else
-			vert_index = i;
-
 		render_shade_vertex(modelview,
 		                    debug_proj,
-		                    vertices[vert_index],
+		                    vertices[i],
 		                    (debug_light_index != -1) ? lighting : NULL,
-		                    &(shaded_verts[vert_index]));
-		debug_disp->vertex4dv(debug_rend, shaded_verts[vert_index].view_pos);
+		                    &(shaded_verts[i]));
+		if (debug_color)
+		{
+			vec4_t color;
+			render_shade_pixel(vertices[i],
+			                   shaded_verts[i],
+			                   (debug_light_index != -1) ? lighting : NULL,
+			                   color);
+			debug_disp->color4dv(debug_rend, color);
+		}
+		else
+			debug_disp->color3f(debug_rend, 1, 1, 1);
+		debug_disp->vertex4dv(debug_rend, shaded_verts[i].view_pos);
 	}
 	debug_disp->end(debug_rend);
+	debug_disp->polygon_mode(debug_rend, GL_FRONT_AND_BACK, GL_FILL);
 
 	debug_disp->begin(debug_rend, GL_LINES);
 	for (GLuint i = 0; i < num_vertices; ++i)
@@ -356,53 +420,8 @@ render_primitive(const struct modelview modelview,
 	{
 		struct shaded_vertex shaded;
 		render_shade_vertex(modelview, proj, vertices[i], lighting, &shaded);
-
-		//render_shade_pixel(vertices[i], vert_lighting, &color);
-
 		vec4_t color;
-		if (lighting)
-		{
-			// Global ambient
-			vec3_mult_vec3(lighting->global_ambient, vertices[i].ambient, color);
-			color[3] = vertices[i].diffuse[3];
-
-			for (GLuint light_index = 0; light_index < number_of(lighting->lights); ++light_index)
-			{
-				if (!lighting->lights[light_index].enabled)
-					continue;
-
-				// Ambient
-				vec3_t ambient;
-				vec3_mult_vec3(lighting->lights[light_index].ambient, vertices[i].ambient, ambient);
-				vec3_add(color, ambient, color);
-
-				// Diffuse
-				GLdouble cos_theta = vec3_dot(shaded.world_norm, shaded.light_dirs[light_index]);
-				GLdouble diff_mix = fmax(0, cos_theta);
-				vec3_t diffuse;
-				vec3_mult_scalar(lighting->lights[light_index].diffuse, diff_mix, diffuse);
-				//vec3_print(diffuse);
-				vec3_mult_vec3(diffuse, vertices[i].diffuse, diffuse);
-				//vec3_print(color);
-				vec3_add(color, diffuse, color);
-
-				// Specular
-				vec3_t half_dir;
-				vec3_add(shaded.light_dirs[light_index], shaded.lighting_eye_dir, half_dir);
-				vec3_norm(half_dir, half_dir);
-				GLdouble cos_theta_half = vec3_dot(shaded.world_norm, half_dir);
-				//fprintf(stderr, "cos_theta_half = %g\n", cos_theta_half);
-				GLdouble spec_mix = pow(fmax(0, cos_theta_half), vertices[i].shininess);
-				//fprintf(stderr, "spec_mix = %g\n", spec_mix);
-				vec3_t specular;
-				vec3_mult_scalar(lighting->lights[light_index].specular, spec_mix, specular);
-				vec3_mult_vec3(specular, vertices[i].specular, specular);
-				//vec3_print(specular);
-				vec3_add(color, specular, color);
-			}
-		}
-		else
-			vec4_copy(vertices[i].color, color);
+		render_shade_pixel(vertices[i], shaded, lighting, color);
 		opengl_disp.color4dv(opengl_rend, color);
 		opengl_disp.vertex4dv(opengl_rend, shaded.view_pos);
 	}
@@ -869,6 +888,12 @@ gl_disable(GLIContext ctx, GLenum cap)
 }
 
 static void
+gl_depth_func(GLIContext ctx, GLenum func)
+{
+	opengl_disp.depth_func(opengl_rend, func);
+}
+
+static void
 gl_push_attrib(GLIContext ctx, GLbitfield mask)
 {
 	assert(saved_attrib_depth < number_of(saved_attrib_stack));
@@ -1228,11 +1253,14 @@ debug_key(unsigned char key, int x, int y)
 		case '\t':
 			debug_mode = (debug_mode + 1) % DEBUG_NMODES;
 			break;
+		case 'c':
+			debug_color = !debug_color;
+			break;
 		case 'p':
-			if (debug_primitive_index < 12)
-				++debug_primitive_index;
-			else
-				debug_primitive_index = -1;
+			++debug_primitive_index;
+			break;
+		case 'P':
+			--debug_primitive_index;
 			break;
 		case 'l':
 			if (++debug_light_index == max_lights)
