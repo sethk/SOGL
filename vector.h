@@ -7,9 +7,36 @@
 
 #include <OpenGL/gl.h>
 
+struct vector2
+{
+	union
+	{
+		struct
+		{
+			GLdouble x, y;
+		};
+		GLdouble v[2];
+	};
+};
+struct vector3
+{
+	union
+	{
+		struct
+		{
+			struct vector2 xy;
+			GLdouble z;
+		};
+		GLdouble v[3];
+	};
+};
 typedef GLdouble vec3_t[3];
 typedef GLdouble vec4_t[4];
 
+struct vector2 vector2_add(const struct vector2 a, const struct vector2 b);
+struct vector2 vector2_divide_scalar(const struct vector2 v, GLdouble divisor);
+GLdouble vector2_length(const struct vector2 v);
+struct vector2 vector2_norm(const struct vector2 v);
 GLdouble vec3_length(const vec3_t v);
 void vec3_add(const vec3_t a, const vec3_t b, vec3_t rv);
 void vec3_print(const vec3_t v);

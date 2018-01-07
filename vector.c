@@ -6,6 +6,64 @@
 #include <stdio.h>
 #include "vector.h"
 
+static void
+vector_add(const GLdouble *av, const GLdouble *bv, GLuint size, GLdouble *sumv)
+{
+	for (GLuint i = 0; i < size; ++i)
+		sumv[i] = av[i] + bv[i];
+}
+
+struct vector2
+vector2_add(const struct vector2 a, const struct vector2 b)
+{
+	struct vector2 sum;
+	vector_add(a.v, b.v, 2, sum.v);
+	return sum;
+}
+
+static void
+vector_divide_scalar(const GLdouble *v, GLuint size, GLdouble divisor, GLdouble *quotv)
+{
+	for (GLuint i = 0; i < size; ++i)
+		quotv[i] = v[i] / divisor;
+}
+struct vector2
+vector2_divide_scalar(const struct vector2 v, GLdouble divisor)
+{
+	struct vector2 quot;
+	vector_divide_scalar(v.v, 2, divisor, quot.v);
+	return quot;
+}
+
+static GLdouble
+vector_length(const GLdouble *v, GLuint size)
+{
+	GLdouble sum_squares = 0;
+	for (GLuint i = 0; i < size; ++i)
+		sum_squares+= v[i] * v[i];
+	return sqrt(sum_squares);
+}
+
+GLdouble
+vector2_length(const struct vector2 v)
+{
+	return vector_length(v.v, 2);
+}
+
+static void
+vector_norm(const GLdouble *v, GLuint size, GLdouble *nv)
+{
+	vector_divide_scalar(v, size, vector_length(v, size), nv);
+}
+
+struct vector2
+vector2_norm(const struct vector2 v)
+{
+	struct vector2 nv;
+	vector_norm(v.v, 2, nv.v);
+	return nv;
+}
+
 GLdouble
 vec3_length(const vec3_t v)
 {
@@ -43,17 +101,17 @@ vec3_mult_vec3(const vec3_t a, const vec3_t b, vec3_t rv)
 }
 
 void
-vec3_divide_scalar(const vec3_t v, GLdouble quot, vec3_t rv)
+vec3_divide_scalar(const vec3_t v, GLdouble divisor, vec3_t rv)
 {
 	for (GLuint i = 0; i < 3; ++i)
-		rv[i] = v[i] / quot;
+		rv[i] = v[i] / divisor;
 }
 
 void
-vec4_divide_scalar(const vec4_t v, GLdouble quot, vec4_t rv)
+vec4_divide_scalar(const vec4_t v, GLdouble divisor, vec4_t rv)
 {
 	for (GLuint i = 0; i < 4; ++i)
-		rv[i] = v[i] / quot;
+		rv[i] = v[i] / divisor;
 }
 
 void

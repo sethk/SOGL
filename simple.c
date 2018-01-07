@@ -16,7 +16,7 @@
 
 /* X compile line: cc -o simple simple.c -lglut -lGLU -lGL -lXmu -lXext -lX11 -lm */
 
-#include <GL/glut.h>
+#include <GLUT/glut.h>
 
 void
 reshape(int w, int h)

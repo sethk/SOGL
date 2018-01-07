@@ -132,7 +132,6 @@ render_update_debug_proj(const struct projection proj)
 			break;
 		case DEBUG_PROJECTION:
 		{
-			struct matrix4x4 scaling = matrix4x4_make_scaling(scale, scale, scale);
 			debug_proj.matrix = matrix4x4_mult_matrix4x4(proj.matrix, scaling);
 			break;
 		}
@@ -512,18 +511,66 @@ gl_materialfv(GLIContext rend, GLenum face, GLenum pname, const GLfloat *params)
 }
 
 static void
+gl_normal3dv(GLIContext ctx, const GLdouble *v)
+{
+	vec3_copy(v, normal);
+	vec3_check_norm(normal, "gl_normal");
+}
+
+static void
+gl_normal3d(GLIContext ctx, GLdouble nx, GLdouble ny, GLdouble nz)
+{
+	fprintf(stderr, "TODO: normal3d()\n");
+}
+
+static void
 gl_normal3fv(GLIContext rend, const GLfloat *v)
 {
-	for (GLuint i = 0; i < 3; ++i)
-		normal[i] = v[i];
-	vec3_check_norm(normal);
+	GLdouble dv[3] = {v[0], v[1], v[2]};
+	gl_normal3dv(rend, dv);
 }
 
 static void
 gl_normal3f(GLIContext rend, GLfloat x, GLfloat y, GLfloat z)
 {
-	GLfloat v[3] = {x, y, z};
-	glNormal3fv(v);
+	GLdouble v[3] = {x, y, z};
+	glNormal3dv(v);
+}
+
+static void
+gl_normal3b(GLIContext ctx, GLbyte nx, GLbyte ny, GLbyte nz)
+{
+	fprintf(stderr, "TODO: normal3b()\n");
+}
+
+static void
+gl_normal3bv(GLIContext ctx, const GLbyte *v)
+{
+	fprintf(stderr, "TODO: normal3bv()\n");
+}
+
+static void
+gl_normal3i(GLIContext ctx, GLint nx, GLint ny, GLint nz)
+{
+	fprintf(stderr, "TODO: normal3i()\n");
+}
+
+static void
+gl_normal3iv(GLIContext ctx, const GLint *v)
+{
+	fprintf(stderr, "TODO: normal3iv()\n");
+}
+
+static void
+gl_normal3s(GLIContext ctx, GLshort nx, GLshort ny, GLshort nz)
+{
+	fprintf(stderr, "TODO: normal3s()\n");
+}
+
+static void
+gl_normal3sv(GLIContext ctx, const GLshort *v)
+{
+	fprintf(stderr, "TODO: normal3sv()\n");
 }
 
 static void
@@ -597,7 +644,8 @@ gl_vertex2d(GLIContext ctx, GLdouble x, GLdouble y)
 static void
 gl_vertex2dv(GLIContext ctx, const GLdouble *v)
 {
-	fprintf(stderr, "TODO: vertex2dv()\n");
+	GLdouble v4[4] = {v[0], v[1], 0, 1.0};
+	gl_vertex4dv(ctx, v4);
 }
 
 static void
@@ -648,7 +696,8 @@ gl_vertex3d(GLIContext ctx, GLdouble x, GLdouble y, GLdouble z)
 static void
 gl_vertex3dv(GLIContext ctx, const GLdouble *v)
 {
-	fprintf(stderr, "TODO: vertex3dv()\n");
+	GLdouble v4[4] = {v[0], v[1], v[2], 1.0};
+	gl_vertex4dv(ctx, v4);
 }
 
 static void
