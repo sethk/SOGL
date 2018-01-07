@@ -852,6 +852,10 @@ gl_lightfv(GLIContext rend, GLenum light, GLenum pname, const GLfloat *params)
 			break;
 		case GL_DIFFUSE:
 			vec4_copy_float(params, lighting.lights[light - GL_LIGHT0].diffuse);
+			break;
+		case GL_SPECULAR:
+			vec4_copy_float(params, lighting.lights[light - GL_LIGHT0].specular);
+			break;
 		case GL_POSITION:
 		{
 			vec4_t pos;
