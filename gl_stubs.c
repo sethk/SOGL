@@ -805,30 +805,6 @@ gl_is_texture(GLIContext ctx, GLuint texture)
 }
 
 static void
-gl_light_modelf(GLIContext ctx, GLenum pname, GLfloat param)
-{
-	fprintf(stderr, "TODO: light_modelf()\n");
-}
-
-static void
-gl_light_modelfv(GLIContext ctx, GLenum pname, const GLfloat *params)
-{
-	fprintf(stderr, "TODO: light_modelfv()\n");
-}
-
-static void
-gl_light_modeli(GLIContext ctx, GLenum pname, GLint param)
-{
-	fprintf(stderr, "TODO: light_modeli()\n");
-}
-
-static void
-gl_light_modeliv(GLIContext ctx, GLenum pname, const GLint *params)
-{
-	fprintf(stderr, "TODO: light_modeliv()\n");
-}
-
-static void
 gl_lightf(GLIContext ctx, GLenum light, GLenum pname, GLfloat param)
 {
 	fprintf(stderr, "TODO: lightf()\n");
