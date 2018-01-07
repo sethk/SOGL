@@ -168,6 +168,19 @@ matrix_check_inverse(const GLdouble *mv, GLuint dim, const GLdouble *imv)
 		}
 }
 
+static void
+matrix_mult_vector(const GLdouble *mv, GLuint num_cols, GLuint num_rows, const GLdouble *vv, GLdouble *resultv)
+{
+	assert(vv != resultv);
+	for (GLuint row = 0; row < num_rows; ++row)
+	{
+		GLdouble dot = 0;
+		for (GLuint col = 0; col < num_cols; ++col)
+			dot+= mv[col * num_rows + row] * vv[col];
+		resultv[row] = dot;
+	}
+}
+
 GLdouble
 matrix3x3_minor(const struct matrix3x3 m, GLuint without_col, GLuint without_row)
 {
@@ -214,26 +227,19 @@ matrix4x4_mult_matrix4x4(const struct matrix4x4 m, const struct matrix4x4 n)
 	return mn;
 }
 
-void
-matrix4x4_mult_vec4(const struct matrix4x4 m, const vec4_t v, vec4_t rv)
+struct vector4
+matrix4x4_mult_vector4(const struct matrix4x4 m, const struct vector4 v)
 {
-	vec4_t result;
-	for (GLuint row = 0; row < 4; ++row)
-	{
-		GLdouble dot = 0;
-		for (GLuint i = 0; i < 4; ++i)
-			dot+= m.cols[i][row] * v[i];
-		result[row] = dot;
-	}
-	for (GLuint i = 0; i < 4; ++i)
-		rv[i] = result[i];
+	struct vector4 result;
+	matrix_mult_vector(m.m, 4, 4, v.v, result.v);
+	return result;
 }
 
 struct matrix4x4
 matrix4x4_make_rotation(GLdouble angle, GLdouble x, GLdouble y, GLdouble z)
 {
-	vec3_t axis = {x, y, z};
-	assert(vec3_length(axis) == 1.0);
+	struct vector3 axis = {.x = x, .y = y, .z = z};
+	vector3_check_norm(axis, "rotation axis");
 	GLdouble angle_rad = angle / (180.0 / M_PI);
 	GLdouble c = cos(angle_rad);
 	GLdouble s = sin(angle_rad);

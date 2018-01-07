@@ -7,6 +7,9 @@
 
 #include <OpenGL/gl.h>
 
+// Vector operations: from_array, length, add, sub, mult_scalar, mult_vecN, divide_scalar, norm, check_norm, cross, dot,
+// project, print
+
 struct vector2
 {
 	union
@@ -18,44 +21,63 @@ struct vector2
 		GLdouble v[2];
 	};
 };
+
+GLdouble vector2_length(const struct vector2 v);
+struct vector2 vector2_add(const struct vector2 a, const struct vector2 b);
+struct vector2 vector2_divide_scalar(const struct vector2 v, GLdouble divisor);
+struct vector2 vector2_norm(const struct vector2 v);
+
 struct vector3
 {
 	union
 	{
 		struct
 		{
-			struct vector2 xy;
-			GLdouble z;
+			GLdouble x, y, z;
 		};
+		struct
+		{
+			GLdouble r, g, b;
+		};
+		struct vector2 xy;
 		GLdouble v[3];
 	};
 };
-typedef GLdouble vec3_t[3];
-typedef GLdouble vec4_t[4];
 
-struct vector2 vector2_add(const struct vector2 a, const struct vector2 b);
-struct vector2 vector2_divide_scalar(const struct vector2 v, GLdouble divisor);
-GLdouble vector2_length(const struct vector2 v);
-struct vector2 vector2_norm(const struct vector2 v);
-GLdouble vec3_length(const vec3_t v);
-void vec3_add(const vec3_t a, const vec3_t b, vec3_t rv);
-void vec3_print(const vec3_t v);
-void vec3_mult_scalar(const vec3_t v, GLdouble mult, vec3_t rv);
-void vec3_mult_vec3(const vec3_t a, const vec3_t b, vec3_t rv);
-void vec3_divide_scalar(const vec3_t v, GLdouble quot, vec3_t rv);
-void vec4_divide_scalar(const vec4_t v, GLdouble quot, vec4_t rv);
-void vec3_copy(const vec3_t v, vec3_t rv);
-void vec4_copy(const vec4_t v, vec4_t rv);
-void vec4_copy_float(const GLfloat *v, vec4_t rv);
-void vec3_copy_vec4(const vec3_t v, GLdouble w, vec4_t rv);
-void vec3_norm(const vec3_t v, vec3_t rv);
-void vec3_check_norm(const vec3_t v, const char *label);
-void vec3_cross(const vec3_t a, const vec3_t b, vec3_t rv);
-GLdouble vec3_dot(const vec3_t a, const vec3_t b);
-GLdouble vec4_dot(const vec4_t a, const vec4_t b);
-void vec4_add(const vec4_t a, const vec4_t b, vec4_t rv);
-void vec4_sub(const vec4_t a, const vec4_t b, vec4_t rv);
-void vec4_mult_vec4(const vec4_t a, const vec4_t b, vec4_t rv);
-void vec4_print(const vec4_t v);
+struct vector3 vector3_from_array(const GLdouble *v);
+GLdouble vector3_length(const struct vector3 v);
+struct vector3 vector3_add(const struct vector3 a, const struct vector3 b);
+struct vector3 vector3_sub(const struct vector3 a, const struct vector3 b);
+struct vector3 vector3_mult_scalar(const struct vector3 v, GLdouble mult);
+struct vector3 vector3_mult_vector3(const struct vector3 a, const struct vector3 b);
+struct vector3 vector3_divide_scalar(struct vector3 v, GLdouble divisor);
+struct vector3 vector3_norm(const struct vector3 v);
+void vector3_check_norm(const struct vector3 v, const char *label);
+struct vector3 vector3_cross(const struct vector3 a, const struct vector3 b);
+GLdouble vector3_dot(const struct vector3 a, const struct vector3 b);
+void vector3_print(const struct vector3 v, const char *label);
+
+struct vector4
+{
+	union
+	{
+		struct
+		{
+			GLdouble x, y, z, w;
+		};
+		struct
+		{
+			GLdouble r, g, b, a;
+		};
+		struct vector3 xyz;
+		struct vector3 rgb;
+		GLdouble v[4];
+	};
+};
+
+struct vector4 vector4_from_array(const GLdouble *v);
+struct vector4 vector4_from_float_array(const GLfloat *v);
+struct vector4 vector4_sub(const struct vector4 a, const struct vector4 b);
+struct vector3 vector4_project(const struct vector4 v);
 
 #endif //SOGL_VECTOR_H
