@@ -22,7 +22,7 @@ void vec4_copy(const vec4_t v, vec4_t rv);
 void vec4_copy_float(const GLfloat *v, vec4_t rv);
 void vec3_copy_vec4(const vec3_t v, GLdouble w, vec4_t rv);
 void vec3_norm(const vec3_t v, vec3_t rv);
-void vec3_check_norm(const vec3_t v);
+void vec3_check_norm(const vec3_t v, const char *label);
 void vec3_cross(const vec3_t a, const vec3_t b, vec3_t rv);
 GLdouble vec3_dot(const vec3_t a, const vec3_t b);
 GLdouble vec4_dot(const vec4_t a, const vec4_t b);

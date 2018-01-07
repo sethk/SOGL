@@ -118,23 +118,34 @@ matrix_trans_square(const GLdouble *mv, GLuint dim, GLdouble *tmv)
 }
 
 static void
-matrix_invert(const GLdouble *mv, GLuint dim, GLdouble *imv)
+matrix_divide_scalar(const GLdouble *mv, GLuint num_cols, GLuint num_rows, GLdouble divisor, GLdouble *rm)
 {
-	assert(mv != imv);
+	for (GLuint col = 0; col < num_cols; ++col)
+		for (GLuint row = 0; row < num_rows; ++row)
+			rm[col * num_rows + row]/= divisor;
+}
+
+static void
+matrix_invert_trans(const GLdouble *mv, GLuint dim, GLdouble *amv)
+{
+	assert(mv != amv);
 	GLdouble det = matrix_det(mv, dim);
 	assert(det != 0);
-	matrix_minors(mv, dim, imv);
+	matrix_minors(mv, dim, amv);
 	//matrix_print(imv, dim, dim, "minors");
 	for (GLuint col = 0; col < dim; ++col)
 		for (GLuint row = 0; row < dim; ++row)
 			if ((col + row) % 2 == 1)
-				imv[col * dim + row] = -imv[col * dim + row];
-	//matrix_print(imv, dim, dim, "cofactors");
+				amv[col * dim + row] = -amv[col * dim + row];
+	//matrix_print(imv, dim, dim, "transpose cofactors AKA classic adjoint");
+	matrix_divide_scalar(amv, dim, dim, det, amv);
+}
+
+static void
+matrix_invert(const GLdouble *mv, GLuint dim, GLdouble *imv)
+{
+	matrix_invert_trans(mv, dim, imv);
 	matrix_trans_square(imv, dim, imv);
-	//matrix_print(imv, dim, dim, "adjoint");
-	for (GLuint col = 0; col < dim; ++col)
-		for (GLuint row = 0; row < dim; ++row)
-			imv[col * dim + row]/= det;
 }
 
 static void
@@ -255,6 +266,14 @@ GLdouble
 matrix4x4_det(const struct matrix4x4 m)
 {
 	return matrix_det(m.m, 4);
+}
+
+struct matrix4x4
+matrix4x4_invert_trans(const struct matrix4x4 m)
+{
+	struct matrix4x4 am;
+	matrix_invert_trans(m.m, 4, am.m);
+	return am;
 }
 
 struct matrix4x4

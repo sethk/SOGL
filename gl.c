@@ -20,6 +20,12 @@
 #define MAX_PRIMITIVE_VERTICES (8)
 
 /* Render */
+struct modelview
+{
+	struct matrix4x4 matrix;
+	struct matrix4x4 inverse_trans;
+};
+
 struct projection
 {
 	struct matrix4x4 matrix;
@@ -219,19 +225,19 @@ render_lights_debug(struct light *lights, GLuint num_lights)
 */
 
 static void
-render_shade_vertex(const struct matrix4x4 modelview,
+render_shade_vertex(const struct modelview modelview,
                     const struct projection proj,
                     const struct vertex vertex,
                     const struct lighting *lighting,
                     struct shaded_vertex *shaded)
 {
-	matrix4x4_mult_vec4(modelview, vertex.pos, shaded->world_pos);
+	matrix4x4_mult_vec4(modelview.matrix, vertex.pos, shaded->world_pos);
 	matrix4x4_mult_vec4(proj.matrix, shaded->world_pos, shaded->view_pos);
 
 	vec4_t norm4;
 	vec3_copy_vec4(vertex.norm, 0, norm4);
-	matrix4x4_mult_vec4(modelview, norm4, norm4);
-	vec3_norm(norm4, shaded->world_norm);
+	matrix4x4_mult_vec4(modelview.inverse_trans, norm4, shaded->world_norm);
+	vec3_check_norm(shaded->world_norm, "world_norm");
 
 	if (lighting)
 	{
@@ -257,7 +263,7 @@ render_shade_vertex(const struct matrix4x4 modelview,
 }
 
 static void
-render_primitive_debug(const struct matrix4x4 modelview,
+render_primitive_debug(const struct modelview modelview,
                        const struct projection proj,
                        GLenum mode,
                        struct vertex *vertices,
@@ -336,7 +342,7 @@ render_primitive_debug(const struct matrix4x4 modelview,
 }
 
 static void
-render_primitive(const struct matrix4x4 modelview,
+render_primitive(const struct modelview modelview,
 				 const struct projection proj,
 				 GLenum mode,
 				 struct vertex *vertices,
@@ -350,11 +356,7 @@ render_primitive(const struct matrix4x4 modelview,
 	for (GLuint i = 0; i < num_vertices; ++i)
 	{
 		struct shaded_vertex shaded;
-		render_shade_vertex(modelview,
-		                    proj,
-		                    vertices[i],
-		                    lighting,
-		                    &shaded);
+		render_shade_vertex(modelview, proj, vertices[i], lighting, &shaded);
 
 		//render_shade_pixel(vertices[i], vert_lighting, &color);
 
@@ -527,6 +529,10 @@ gl_normal3f(GLIContext rend, GLfloat x, GLfloat y, GLfloat z)
 static void
 gl_flush_primitive(void)
 {
+	struct modelview modelview;
+	modelview.matrix = modelview_stack[modelview_depth];
+	modelview.inverse_trans = matrix4x4_invert_trans(modelview_stack[modelview_depth]);
+
 	struct projection proj;
 	proj.matrix = projection_stack[projection_depth];
 	struct matrix4x4 inv_proj;
@@ -534,12 +540,8 @@ gl_flush_primitive(void)
 	matrix4x4_check_inverse(proj.matrix, inv_proj);
 	vec4_t eye_pos = {0, 0, -1, 1};
 	matrix4x4_mult_vec4(inv_proj, eye_pos, proj.world_eye_pos);
-	render_primitive(modelview_stack[modelview_depth],
-					 proj,
-					 primitive_mode,
-					 vertices,
-					 num_vertices,
-					 (lighting_enabled) ? &lighting : NULL);
+
+	render_primitive(modelview, proj, primitive_mode, vertices, num_vertices, (lighting_enabled) ? &lighting : NULL);
 
 	switch (primitive_mode)
     {

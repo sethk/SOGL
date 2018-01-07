@@ -92,12 +92,12 @@ vec3_norm(const vec3_t v, vec3_t rv)
 }
 
 void
-vec3_check_norm(const vec3_t v)
+vec3_check_norm(const vec3_t v, const char *label)
 {
 	GLdouble length = vec3_length(v);
 	if (fabs(1.0 - length) > 1.0e-7)
 	{
-		fprintf(stderr, "Vector not normalized (1.0 - length = %g): ", 1.0 - length);
+		fprintf(stderr, "%s: Vector not normalized (1.0 - length = %g): ", label, 1.0 - length);
 		vec3_print(v);
 	}
 }

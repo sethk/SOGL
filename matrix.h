@@ -38,6 +38,7 @@ void matrix4x4_mult_vec4(const struct matrix4x4 m, const vec4_t v, vec4_t rv);
 struct matrix4x4 matrix4x4_make_rotation(GLdouble angle, GLdouble x, GLdouble y, GLdouble z);
 struct matrix4x4 matrix4x4_make_scaling(GLdouble x, GLdouble y, GLdouble z);
 GLdouble matrix4x4_det(const struct matrix4x4 m);
+struct matrix4x4 matrix4x4_invert_trans(const struct matrix4x4 m);
 struct matrix4x4 matrix4x4_invert(const struct matrix4x4 m);
 void matrix4x4_check_inverse(const struct matrix4x4 m, const struct matrix4x4 im);
 void matrix4x4_print(const struct matrix4x4 m, const char *label);
