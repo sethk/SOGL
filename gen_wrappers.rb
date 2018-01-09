@@ -10,6 +10,9 @@ fail "usage: #{$0} <prefix> <path>" unless ARGV.length == 2
 prefix = ARGV[0]
 path = ARGV[1]
 
+puts '#include <err.h>'
+puts '#include <dlfcn.h>'
+
 funcs = []
 while $stdin.gets
   next unless /^extern (.*) APIENTRY (\w+)\((.+)\) /

@@ -16,7 +16,7 @@ add_custom_command(
 )
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-set(SOGL_SOURCES vector.c matrix.c gl.c wrap_glut.h)
+set(SOGL_SOURCES vector.c matrix.c draw.h draw_opengl.c gl.c wrap_glut.h)
 function(sogl_targets name)
     add_executable(${name} ${name}.c ${ARGN} ${SOGL_SOURCES})
     add_executable(opengl_${name} ${name}.c ${ARGN})
