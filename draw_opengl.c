@@ -8,8 +8,8 @@
 #include <err.h>
 #include <strings.h>
 
-#include "draw_opengl.h"
 #include "draw.h"
+#include "window_cgl.h"
 
 struct drawable
 {
@@ -18,13 +18,14 @@ struct drawable
 };
 
 struct drawable *
-draw_create_opengl(CGLContextObj context)
+draw_create(struct window *window)
 {
+	struct cgl_window *cgl_window = (struct cgl_window *)window;
 	struct drawable *d = calloc(1, sizeof(*d));
 	if (!d)
 		err(1, "Alloc drawable");
-	d->rend = context->rend;
-	bcopy(&(context->disp), &(d->disp), sizeof(context->disp));
+	d->rend = cgl_window->context;
+	d->disp = cgl_window->dispatch;
 	return d;
 }
 
@@ -35,14 +36,20 @@ draw_destroy(struct drawable *d)
 }
 
 void
+draw_reshape(struct drawable *d, u_int width, u_int height)
+{
+}
+
+void
 draw_set_view(struct drawable *d, u_int x, u_int y, u_int width, u_int height)
 {
 	d->disp.viewport(d->rend, x, y, width, height);
 }
 
 void
-draw_clear(struct drawable *d, bool color, bool depth)
+draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, bool depth)
 {
+	d->disp.clear_color(d->rend, clear_color.r, clear_color.g, clear_color.b, clear_color.a);
 	GLenum mask = ((color) ? GL_COLOR_BUFFER_BIT : 0) | ((depth) ? GL_DEPTH_BUFFER_BIT : 0);
 	d->disp.clear(d->rend, mask);
 }

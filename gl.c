@@ -9,13 +9,12 @@
 #include "wrap_glut.h"
 #include "vector.h"
 #include "matrix.h"
-#include "draw_opengl.h"
+#include "window_cgl.h"
+#include "draw.h"
 
 #define number_of(a) (sizeof(a) / sizeof(*(a)))
 
 #define DEBUG_WIN (-5)
-
-#define MAX_PRIMITIVE_VERTICES (8)
 
 /* Render */
 struct modelview
@@ -76,7 +75,7 @@ static GLuint primitive_index;
 int debug_save_win;
 GLIContext debug_rend;
 GLIFunctionDispatch *debug_disp;
-enum {DEBUG_FRONT, DEBUG_LEFT, DEBUG_TOP, DEBUG_PROJECTION, DEBUG_NMODES} debug_mode = 0;
+enum {DEBUG_PROJECTION, DEBUG_FRONT, DEBUG_LEFT, DEBUG_TOP, DEBUG_NMODES} debug_mode = 0;
 static GLint debug_primitive_index = -1;
 static GLint debug_light_index = -1;
 static GLboolean debug_color = GL_FALSE;
@@ -241,14 +240,14 @@ render_shade_vertex(const struct modelview modelview,
 	shaded.world_pos = matrix4x4_mult_vector4(modelview.matrix, vertex.pos);
 	shaded.view_pos = matrix4x4_mult_vector4(proj, shaded.world_pos);
 
-	struct vector4 norm4;
-	norm4.xyz = vertex.norm;
-	norm4.w = 0;
-	shaded.world_norm = matrix4x4_mult_vector4(modelview.inverse_trans, norm4).xyz;
-	vector3_check_norm(shaded.world_norm, "world_norm");
-
 	if (lighting)
 	{
+		struct vector4 norm4;
+		norm4.xyz = vertex.norm;
+		norm4.w = 0;
+		shaded.world_norm = matrix4x4_mult_vector4(modelview.inverse_trans, norm4).xyz;
+		vector3_check_norm(shaded.world_norm, "world_norm");
+
 		for (GLuint i = 0; i < number_of(lighting->lights); ++i)
 		{
 			if (!lighting->lights[i].enabled)
@@ -428,18 +427,20 @@ render_primitive(const struct modelview modelview,
 				 struct lighting *lighting)
 {
 	if (debug_primitive_index == -1 || primitive_index == (GLuint)debug_primitive_index)
-		render_primitive_debug(modelview, proj, vertices, indices, num_vertices, lighting);
-
-	struct shaded_vertex shaded[MAX_PRIMITIVE_VERTICES];
-	render_shade_vertices(modelview, proj, vertices, indices, num_vertices, lighting, shaded);
-	struct vector3 coords[MAX_PRIMITIVE_VERTICES];
-	struct vector4 colors[MAX_PRIMITIVE_VERTICES];
-	for (GLuint i = 0; i < num_vertices; ++i)
 	{
-		colors[i] = render_shade_pixel(vertices[indices[i]].mat, shaded[i], lighting);
-		coords[i] = vector4_project(shaded[i].view_pos);
+		struct shaded_vertex shaded[MAX_PRIMITIVE_VERTICES];
+		render_shade_vertices(modelview, proj, vertices, indices, num_vertices, lighting, shaded);
+		struct vector3 coords[MAX_PRIMITIVE_VERTICES];
+		struct vector4 colors[MAX_PRIMITIVE_VERTICES];
+		for (GLuint i = 0; i < num_vertices; ++i)
+		{
+			colors[i] = render_shade_pixel(vertices[indices[i]].mat, shaded[i], lighting);
+			coords[i] = vector4_project(shaded[i].view_pos);
+		}
+
+		render_primitive_debug(modelview, proj, vertices, indices, num_vertices, lighting);
+		draw_primitive(drawable, draw_options, coords, colors, num_vertices);
 	}
-	draw_primitive(drawable, draw_options, coords, colors, num_vertices);
 
 	++primitive_index;
 }
@@ -447,6 +448,7 @@ render_primitive(const struct modelview modelview,
 /* GL */
 #include "gl_stubs.c"
 
+static struct vector4 clear_color = {.r = 0, .g = 0, .b = 0, .a = 0};
 static GLenum matrix_mode = GL_MODELVIEW;
 static struct matrix4x4 modelview_stack[32] = {IDENTITY_MATRIX4X4};
 static GLuint modelview_depth = 0;
@@ -956,7 +958,7 @@ gl_clear(GLIContext rend, GLbitfield mask)
 		fprintf(stderr, "%s() TODO: 0x%x\n", __FUNCTION__, mask & ~GL_COLOR_BUFFER_BIT);
 	bool color = (mask & GL_COLOR_BUFFER_BIT);
 	bool depth = (mask & GL_DEPTH_BUFFER_BIT);
-	draw_clear(drawable, color, depth);
+	draw_clear(drawable, color, clear_color, depth);
 
 	debug_disp->clear(debug_rend, mask & GL_COLOR_BUFFER_BIT);
 }
@@ -1239,7 +1241,10 @@ static void
 gl_clear_color(GLIContext rend, GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
 {
 	fprintf(stderr, "%s() TODO\n", __FUNCTION__);
-	//opengl_disp.clear_color(opengl_rend, red, green, blue, alpha);
+	clear_color.r = red;
+	clear_color.b = blue;
+	clear_color.g = green;
+	clear_color.a = alpha;
 }
 
 static void
@@ -1382,9 +1387,10 @@ gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar)
 /* GLUT */
 void *glutStrokeRoman;
 
-int main_win = -1;
+struct window *main_window = NULL;
+int glut_main_win = -1;
 struct {int x, y;} main_win_pos;
-struct {int width, height;} main_win_size;
+struct {int width, height;} init_win_size;
 int debug_win = -1;
 
 void (*reshape_func)(int width, int height);
@@ -1393,16 +1399,16 @@ void (*idle_func)(void);
 static void
 reshape(int width, int height)
 {
+	draw_reshape(drawable, width, height);
+
 	if (reshape_func)
 		reshape_func(width, height);
 	else
 		glViewport(0, 0, width, height);
 
-	main_win_size.width = width;
-	main_win_size.height = height;
 	render_push_debug();
-	openGLUTReshapeWindow(main_win_size.width, main_win_size.height);
-	openGLUTPositionWindow(main_win_pos.x + main_win_size.width + 20, main_win_pos.y);
+	openGLUTReshapeWindow(width, height);
+	openGLUTPositionWindow(main_win_pos.x + width + 20, main_win_pos.y);
 	render_pop_debug();
 }
 
@@ -1453,14 +1459,14 @@ debug_key(unsigned char key, int x, int y)
 	}
 
 	render_update_debug_title();
-	openGLUTPostWindowRedisplay(main_win);
+	openGLUTPostWindowRedisplay(glut_main_win);
 }
 
 static void
 debug_idle(void)
 {
 	if (openGLUTGetWindow() == debug_win)
-		openGLUTSetWindow(main_win);
+		openGLUTSetWindow(glut_main_win);
 
 	idle_func();
 }
@@ -1489,8 +1495,8 @@ glutInitWindowPosition(int x, int y)
 void
 glutInitWindowSize(int width, int height)
 {
-	main_win_size.width = width;
-	main_win_size.height = height;
+	init_win_size.width = width;
+	init_win_size.height = height;
 	openGLUTInitWindowSize(width, height);
 }
 
@@ -1499,8 +1505,8 @@ glutMainLoop(void)
 {
 	if (debug_win == -1)
 	{
-		openGLUTInitWindowPosition(main_win_pos.x + main_win_size.width + 20, main_win_pos.y);
-		openGLUTInitWindowSize(main_win_size.width, main_win_size.height);
+		openGLUTInitWindowPosition(main_win_pos.x + init_win_size.width + 20, main_win_pos.y);
+		openGLUTInitWindowSize(init_win_size.width, init_win_size.height);
 		openGLUTInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
 		debug_win = openGLUTCreateWindow("Debug");
 		render_update_debug_title();
@@ -1514,7 +1520,7 @@ glutMainLoop(void)
 		glMatrixMode(GL_PROJECTION);
 		glOrtho(-1, 1, -1, 1, -10, 10);
 		glMatrixMode(GL_MODELVIEW);
-		openGLUTSetWindow(main_win);
+		openGLUTSetWindow(glut_main_win);
 	}
 
 	openGLUTMainLoop();
@@ -1523,12 +1529,16 @@ glutMainLoop(void)
 int
 glutCreateWindow(const char *title)
 {
-	assert(main_win == -1);
-	main_win = openGLUTCreateWindow(title);
+	assert(glut_main_win == -1);
+	glut_main_win = openGLUTCreateWindow(title);
 	CGLContextObj context = CGLGetCurrentContext();
-	drawable = draw_create_opengl(context);
+	main_window = window_create_cgl(context);
+	//main_win->width = init_win_size.width;
+	//main_win->height = init_win_size.height;
+	drawable = draw_create(main_window);
+	draw_reshape(drawable, init_win_size.width, init_win_size.height);
 #include "gl_setup_ctx.c"
-	return main_win;
+	return glut_main_win;
 }
 
 int
@@ -1574,7 +1584,7 @@ void
 glutPostRedisplay(void)
 {
 	if (openGLUTGetWindow() == debug_win)
-		openGLUTPostWindowRedisplay(main_win);
+		openGLUTPostWindowRedisplay(glut_main_win);
 	else
 		openGLUTPostRedisplay();
 }

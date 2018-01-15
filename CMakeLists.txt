@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.9)
 project(SOGL)
 
+add_compile_options(-mmacos-version-min=10.13)
 add_compile_options(-Werror -Wall -Wformat -Wextra -Wno-deprecated -Wno-unused-parameter)
 add_compile_options(-O0 -fno-inline)
 find_package(OpenGL REQUIRED)
@@ -10,13 +11,13 @@ link_libraries(${OPENGL_LIBRARIES})
 
 add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/wrap_glut.h
-        COMMAND ${CMAKE_SOURCE_DIR}/gen_wrappers.rb glut /System/Library/Frameworks/GLUT.framework/GLUT <
-                /System/Library/Frameworks/GLUT.framework/Headers/glut.h > ${CMAKE_CURRENT_BINARY_DIR}/wrap_glut.h
+        COMMAND ${CMAKE_SOURCE_DIR}/gen_wrappers.rb glut ${GLUT_glut_LIBRARY}/GLUT <
+                ${GLUT_INCLUDE_DIR}/glut.h > ${CMAKE_CURRENT_BINARY_DIR}/wrap_glut.h
         DEPENDS ${CMAKE_SOURCE_DIR}/gen_wrappers.rb
 )
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-set(SOGL_SOURCES vector.c matrix.c draw.h draw_opengl.c gl.c wrap_glut.h)
+set(SOGL_SOURCES vector.c matrix.c draw.h draw_raster.c window.h window_cgl.c gl.c wrap_glut.h)
 function(sogl_targets name)
     add_executable(${name} ${name}.c ${ARGN} ${SOGL_SOURCES})
     add_executable(opengl_${name} ${name}.c ${ARGN})

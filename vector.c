@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <strings.h>
+#include <assert.h>
 #include "vector.h"
 
 static void
@@ -230,11 +231,35 @@ vector4_from_float_array(const GLfloat *fv)
 }
 
 struct vector4
+vector4_add(const struct vector4 a, const struct vector4 b)
+{
+	struct vector4 sum;
+	vector_add(a.v, b.v, 4, sum.v);
+	return sum;
+}
+
+struct vector4
 vector4_sub(const struct vector4 a, const struct vector4 b)
 {
 	struct vector4 diff;
 	vector_sub(a.v, b.v, 4, diff.v);
 	return diff;
+}
+
+struct vector4
+vector4_mult_scalar(const struct vector4 v, GLdouble mult)
+{
+	struct vector4 prod;
+	vector_mult_scalar(v.v, 4, mult, prod.v);
+	return prod;
+}
+
+struct vector4
+vector4_lerp(const struct vector4 a, const struct vector4 b, GLdouble t)
+{
+	if (t < 0 || t > 1)
+		fprintf(stderr, "%s: invalid t %g\n", __FUNCTION__, t);
+	return vector4_add(vector4_mult_scalar(a, 1 - t), vector4_mult_scalar(b, t));
 }
 
 struct vector3
