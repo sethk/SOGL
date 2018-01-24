@@ -16,6 +16,13 @@ vector_add(const GLdouble *av, const GLdouble *bv, GLuint size, GLdouble *sumv)
 }
 
 static void
+vector_clamp(const GLdouble *v, GLuint size, GLdouble *cv)
+{
+	for (GLuint i = 0; i < size; ++i)
+		cv[i] = fmax(fmin(v[i], 1.0), 0);
+}
+
+static void
 vector_sub(const GLdouble *av, const GLdouble *bv, GLuint size, GLdouble *diffv)
 {
 	for (GLuint i = 0; i < size; ++i)
@@ -139,6 +146,14 @@ vector3_add(const struct vector3 a, const struct vector3 b)
 	struct vector3 sum;
 	vector_add(a.v, b.v, 3, sum.v);
 	return sum;
+}
+
+struct vector3
+vector3_clamp(const struct vector3 v)
+{
+	struct vector3 clamped;
+	vector_clamp(v.v, 3, clamped.v);
+	return clamped;
 }
 
 struct vector3

@@ -322,6 +322,7 @@ render_shade_pixel(const struct material material,
 			//vec3_print(specular);
 			color.rgb = vector3_add(color.rgb, specular);
 		}
+		color.rgb = vector3_clamp(color.rgb);
 		return color;
 	}
 	else
@@ -506,6 +507,7 @@ static struct
 {
 	GLbitfield bits;
 	GLboolean lighting_enabled;
+	GLboolean test_depth;
 } saved_attrib_stack[max_attrib_depth];
 static GLuint saved_attrib_depth = 0;
 
@@ -1027,8 +1029,7 @@ gl_disable(GLIContext ctx, GLenum cap)
 static void
 gl_depth_func(GLIContext ctx, GLenum func)
 {
-	fprintf(stderr, "%s() TODO 0x%x\n", __FUNCTION__, func);
-	//opengl_disp.depth_func(opengl_rend, func);
+	draw_options.depth_func = func;
 }
 
 static void
@@ -1038,6 +1039,7 @@ gl_push_attrib(GLIContext ctx, GLbitfield mask)
     if (mask & GL_ENABLE_BIT)
 	{
 		saved_attrib_stack[saved_attrib_depth].lighting_enabled = lighting_enabled;
+		saved_attrib_stack[saved_attrib_depth].test_depth = draw_options.test_depth;
 	}
     saved_attrib_stack[saved_attrib_depth].bits = mask;
 	++saved_attrib_depth;
@@ -1053,6 +1055,7 @@ gl_pop_attrib(GLIContext ctx)
 	if (saved_attrib_stack[saved_attrib_depth].bits & GL_ENABLE_BIT)
 	{
 		lighting_enabled = saved_attrib_stack[saved_attrib_depth].lighting_enabled;
+		draw_options.test_depth = saved_attrib_stack[saved_attrib_depth].test_depth;
 	}
 	fprintf(stderr, "TODO: pop_attrib()\n");
 	//opengl_disp.pop_attrib(opengl_rend);
