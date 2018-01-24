@@ -67,7 +67,9 @@ struct shaded_vertex
 struct drawable *drawable;
 struct draw_options draw_options =
 {
-	.test_depth = false
+	.draw_op = GL_COPY,
+	.test_depth = false,
+	.depth_func = GL_LESS,
 };
 static const struct vector4 origin = {.x = 0, .y = 0, .z = 0, .w = 1};
 static GLuint primitive_index;
@@ -455,6 +457,7 @@ static GLuint modelview_depth = 0;
 static struct matrix4x4 projection_stack[2] = {IDENTITY_MATRIX4X4};
 static GLuint projection_depth = 0;
 static GLenum primitive_mode;
+static GLboolean triangle_strip_winding = GL_FALSE;
 static struct material material =
 {
 	.color = {.r = 1, .g = 1, .b = 1, .a = 1},
@@ -511,6 +514,7 @@ gl_begin(GLIContext rend, GLenum mode)
 {
 	primitive_mode = mode;
 	num_vertices = 0;
+	triangle_strip_winding = GL_TRUE;
 }
 
 static void
@@ -706,9 +710,19 @@ gl_vertex4dv(GLIContext rend, const GLdouble *v)
 		case GL_TRIANGLE_STRIP:
 			if (num_vertices == 3)
 			{
-				indices[0] = 0;
-				indices[1] = 1;
+				if (triangle_strip_winding)
+				{
+					indices[0] = 0;
+					indices[1] = 1;
+				}
+				else
+				{
+					indices[0] = 1;
+					indices[1] = 0;
+				}
+				triangle_strip_winding = !triangle_strip_winding;
 				indices[2] = 2;
+				// TODO: Skip degenerate triangles
 				gl_render_primitive(indices, 3);
 				vertices[0] = vertices[1];
 				vertices[1] = vertices[2];
@@ -956,9 +970,9 @@ gl_clear(GLIContext rend, GLbitfield mask)
 {
 	if (mask & ~(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT))
 		fprintf(stderr, "%s() TODO: 0x%x\n", __FUNCTION__, mask & ~GL_COLOR_BUFFER_BIT);
-	bool color = (mask & GL_COLOR_BUFFER_BIT);
-	bool depth = (mask & GL_DEPTH_BUFFER_BIT);
-	draw_clear(drawable, color, clear_color, depth);
+	bool color = ((mask & GL_COLOR_BUFFER_BIT) != 0);
+	bool depth = ((mask & GL_DEPTH_BUFFER_BIT) != 0);
+	draw_clear(drawable, color, clear_color, depth, 1.0);
 
 	debug_disp->clear(debug_rend, mask & GL_COLOR_BUFFER_BIT);
 }
@@ -1322,7 +1336,7 @@ gl_shade_model(GLIContext rend, GLenum mode)
 static void
 gl_swap_APPLE(GLIContext ctx)
 {
-	//gl_finish(opengl_rend);
+	gl_finish(ctx);
 	draw_flip(drawable);
 }
 

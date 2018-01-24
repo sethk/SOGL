@@ -255,6 +255,14 @@ vector4_mult_scalar(const struct vector4 v, GLdouble mult)
 }
 
 struct vector4
+vector4_divide_scalar(const struct vector4 v, GLdouble divisor)
+{
+	struct vector4 quot;
+	vector_divide_scalar(v.v, 4, divisor, quot.v);
+	return quot;
+}
+
+struct vector4
 vector4_lerp(const struct vector4 a, const struct vector4 b, GLdouble t)
 {
 	if (t < 0 || t > 1)

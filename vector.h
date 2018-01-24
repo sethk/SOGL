@@ -80,6 +80,7 @@ struct vector4 vector4_from_float_array(const GLfloat *v);
 struct vector4 vector4_add(const struct vector4 a, const struct vector4 b);
 struct vector4 vector4_sub(const struct vector4 a, const struct vector4 b);
 struct vector4 vector4_mult_scalar(const struct vector4 v, GLdouble mult);
+struct vector4 vector4_divide_scalar(const struct vector4 v, GLdouble divisor);
 struct vector4 vector4_lerp(const struct vector4 a, const struct vector4 b, GLdouble t);
 struct vector3 vector4_project(const struct vector4 v);
 

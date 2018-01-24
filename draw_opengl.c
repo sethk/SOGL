@@ -70,8 +70,11 @@ draw_primitive(struct drawable *d,
 		case 4: mode = GL_QUADS; break;
 		default: mode = GL_POLYGON;
 	}
+	glLogicOp(options.draw_op);
 	if (options.test_depth)
 		d->disp.enable(d->rend, GL_DEPTH_TEST);
+	else
+		d->disp.disable(d->rend, GL_DEPTH_TEST);
 	d->disp.begin(d->rend, mode);
 	for (GLuint i = 0; i < num_verts; ++i)
 	{
@@ -80,8 +83,6 @@ draw_primitive(struct drawable *d,
 	}
 	d->disp.end(d->rend);
 	//d->disp.flush(d->rend);
-	if (options.test_depth)
-		d->disp.disable(d->rend, GL_DEPTH_TEST);
 }
 
 void
