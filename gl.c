@@ -796,7 +796,8 @@ gl_vertex2f(GLIContext ctx, GLfloat x, GLfloat y)
 static void
 gl_vertex2fv(GLIContext ctx, const GLfloat *v)
 {
-	fprintf(stderr, "TODO: vertex2fv()\n");
+	GLdouble dv[4] = {v[0], v[1], 0, 1.0};
+	gl_vertex4dv(ctx, dv);
 }
 
 static void

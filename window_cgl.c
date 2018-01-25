@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <err.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include "window_cgl.h"
 
 struct window *
@@ -29,10 +30,22 @@ window_check_error(struct cgl_window *cw, const char *label)
 }
 
 void
-window_update(struct window *w, const struct raster_color *frame, u_int x, u_int y, u_int width, u_int height)
+window_update(struct window *w,
+const struct raster_color *frame,
+              u_int x,
+              u_int y,
+              u_int width,
+              u_int height,
+              bool flipped_y)
 {
 	struct cgl_window *cw = (struct cgl_window *)w;
-	cw->dispatch.window_pos2i(cw->context, x, y);
+	if (flipped_y)
+	{
+		cw->dispatch.pixel_zoom(cw->context, 1, -1);
+		cw->dispatch.window_pos2i(cw->context, x, height - y);
+	}
+	else
+		cw->dispatch.window_pos2i(cw->context, x, y);
 	window_check_error(cw, "raster_pos");
 	cw->dispatch.draw_pixels(cw->context, width, height, GL_RGBA, GL_UNSIGNED_BYTE, frame);
 	window_check_error(cw, "draw_pixels");

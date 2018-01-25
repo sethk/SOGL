@@ -17,7 +17,10 @@ struct raster_color
 	u_char red, green, blue, alpha;
 };
 
-void window_update(struct window *w, const struct raster_color *frame, u_int x, u_int y, u_int width, u_int height);
+void window_update(struct window *w,
+                   const struct raster_color *frame,
+                   u_int x, u_int y, u_int width, u_int height,
+                   bool flipped_y);
 void window_flip(struct window *w);
 
 #endif //SOGL_WINDOW_H

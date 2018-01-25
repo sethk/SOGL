@@ -9,6 +9,9 @@
 #include "draw.h"
 #include "window.h"
 
+#define FLIPPED_Y 0
+#define CLAMP_COLORS 0
+
 struct raster_vertex
 {
 	u_int x, y;
@@ -68,7 +71,11 @@ void
 draw_set_view(struct drawable *d, u_int x, u_int y, u_int width, u_int height)
 {
 	d->view_x = x;
+#if FLIPPED_Y
+	d->view_y = d->window_height - (height + y);
+#else
 	d->view_y = y;
+#endif // FLIPPED_Y
 	d->view_width = width;
 	d->view_height = height;
 }
@@ -103,13 +110,20 @@ draw_pixel(struct drawable *d, struct draw_options options, struct raster_vertex
 		case GL_COPY:
 		{
 			struct raster_color *pixel = d->color_buffer + vertex.y * d->window_width + vertex.x;
-			//assert(vertex.color.r >= 0 && vertex.color.r <= 1.0);
-			//assert(vertex.color.g >= 0 && vertex.color.g <= 1.0);
-			//assert(vertex.color.b >= 0 && vertex.color.b <= 1.0);
+#if CLAMP_COLORS
 			pixel->red = round(fmax(fmin(vertex.color.r, 1.0), 0) * 255);
 			pixel->green = round(fmax(fmin(vertex.color.g, 1.0), 0) * 255);
 			pixel->blue = round(fmax(fmin(vertex.color.b, 1.0), 0) * 255);
 			pixel->alpha = round(fmax(fmin(vertex.color.a, 1.0), 0) * 255);
+#else
+			assert(vertex.color.r >= 0 && vertex.color.r <= 1.0);
+			assert(vertex.color.g >= 0 && vertex.color.g <= 1.0);
+			assert(vertex.color.b >= 0 && vertex.color.b <= 1.0);
+			pixel->red = lround(vertex.color.r * 255.0);
+			pixel->green = lround(vertex.color.g * 255.0);
+			pixel->blue = lround(vertex.color.b * 255.0);
+			pixel->alpha = lround(vertex.color.a * 255.0);
+#endif // CLAMP_COLORS
 			break;
 		}
 
@@ -119,6 +133,13 @@ draw_pixel(struct drawable *d, struct draw_options options, struct raster_vertex
 		default:
 			assert(!"Draw operation not implemented");
 	}
+}
+
+static void
+draw_check_vertex(struct drawable *d, struct raster_vertex v)
+{
+	assert(v.x >= d->view_x && v.x < d->view_x + d->view_width);
+	assert(v.y >= d->view_y && v.y < d->view_y + d->view_height);
 }
 
 void
@@ -467,9 +488,13 @@ draw_primitive(struct drawable *d,
 	for (u_int i = 0; i < num_verts; ++i)
 	{
 		assert(vertices[i].x >= -1.0 && vertices[i].x <= 1.0);
-		raster_vertices[i].x = d->view_x + round((vertices[i].x + 1) * ((d->view_width - 1) / 2.0));
+		raster_vertices[i].x = d->view_x + lround(((vertices[i].x + 1.0) / 2.0) * d->view_width);
 		assert(vertices[i].y >= -1.0 && vertices[i].x <= 1.0);
-		raster_vertices[i].y = d->view_y + round((vertices[i].y + 1) * ((d->view_height - 1) / 2.0));
+#if FLIPPED_Y
+		raster_vertices[i].y = (d->view_y + d->view_height) -  lround(((vertices[i].y + 1.0) / 2.0) * d->view_height);
+#else
+		raster_vertices[i].y = d->view_y + lround(((vertices[i].y + 1.0) / 2.0) * d->view_height);
+#endif // FLIPPED_Y
 		assert(vertices[i].z >= -1.0 && vertices[i].z <= 1.0);
 		raster_vertices[i].depth = (vertices[i].z + 1) / 2.0;
 		assert(colors[i].r >= 0 && colors[i].r <= 1.0);
@@ -482,6 +507,7 @@ draw_primitive(struct drawable *d,
 	switch (num_verts)
 	{
 		case 1:
+			draw_check_vertex(d, raster_vertices[0]);
 			draw_pixel(d, options, raster_vertices[0]);
 			break;
 		case 2:
@@ -495,13 +521,13 @@ draw_primitive(struct drawable *d,
 void
 draw_flush(struct drawable *d)
 {
-	window_update(d->window, d->color_buffer, 0, 0, d->window_width, d->window_height);
+	window_update(d->window, d->color_buffer, 0, 0, d->window_width, d->window_height, FLIPPED_Y);
 }
 
 void
 draw_finish(struct drawable *d)
 {
-	window_update(d->window, d->color_buffer, 0, 0, d->window_width, d->window_height);
+	window_update(d->window, d->color_buffer, 0, 0, d->window_width, d->window_height, FLIPPED_Y);
 }
 
 void
