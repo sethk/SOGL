@@ -169,13 +169,15 @@ draw_horiz_line(struct drawable *d,
                 int delta_x)
 {
 	struct raster_vertex v = v1;
+	draw_pixel(d, options, v);
 	int x_step;
 	if (delta_x > 0)
 		x_step = 1;
-	else
+	else if (delta_x < 0)
 		x_step = -1;
+	else
+		return;
 	float depth_incr = (v2.depth - v1.depth) / delta_x;
-	draw_pixel(d, options, v);
 	while (v.x != v2.x)
 	{
 		v.x+= x_step;
@@ -365,6 +367,130 @@ draw_check_edges(struct polygon_edge *edges)
 	}
 }
 
+struct vertical_line_stepper
+{
+	struct raster_vertex vertex;
+	int delta_x;
+	u_int delta_y;
+	u_int x_num;
+	float depth_incr;
+	struct vector4 color_incr;
+};
+
+struct vertical_line_stepper
+draw_create_stepper(struct raster_vertex bottom, struct raster_vertex top)
+{
+	assert(bottom.y < top.y);
+	struct vertical_line_stepper stepper;
+	stepper.vertex = bottom;
+	stepper.delta_x = top.x - bottom.x;
+	stepper.delta_y = top.y - bottom.y;
+	stepper.x_num = 0;
+	stepper.depth_incr = (top.depth - bottom.depth) / stepper.delta_y;
+	stepper.color_incr = vector4_divide_scalar(vector4_sub(top.color, bottom.color), stepper.delta_y);
+	return stepper;
+}
+
+static void
+draw_stepper_incr(struct vertical_line_stepper *stepper)
+{
+	if (stepper->delta_x > 0)
+	{
+		stepper->x_num+= stepper->delta_x;
+		while (stepper->x_num >= stepper->delta_y)
+		{
+			++stepper->vertex.x;
+			stepper->x_num-= stepper->delta_y;
+		}
+	}
+	else if (stepper->delta_x < 0)
+	{
+		stepper->x_num-= stepper->delta_x;
+		while (stepper->x_num >= stepper->delta_y)
+		{
+			--stepper->vertex.x;
+			stepper->x_num-= stepper->delta_y;
+		}
+	}
+	++stepper->vertex.y;
+	stepper->vertex.depth+= stepper->depth_incr;
+	stepper->vertex.color = vector4_add(stepper->vertex.color, stepper->color_incr);
+}
+
+static void
+draw_trapezoid(struct drawable *d,
+               struct draw_options options,
+               struct raster_vertex bottom_left,
+               struct raster_vertex bottom_right,
+               struct raster_vertex top_left,
+               struct raster_vertex top_right)
+{
+	assert(top_left.y == top_right.y);
+	assert(bottom_left.y == bottom_right.y);
+	assert(top_left.x <= top_right.x);
+	assert(bottom_left.x <= bottom_right.x);
+	if (bottom_left.y < top_left.y)
+	{
+		struct vertical_line_stepper left_stepper = draw_create_stepper(bottom_left, top_left);
+		struct vertical_line_stepper right_stepper = draw_create_stepper(bottom_right, top_right);
+
+		while (left_stepper.vertex.y != top_left.y)
+		{
+			draw_horiz_line(d,
+			                options,
+			                left_stepper.vertex,
+			                right_stepper.vertex,
+			                right_stepper.vertex.x - left_stepper.vertex.x);
+			draw_stepper_incr(&left_stepper);
+			draw_stepper_incr(&right_stepper);
+		}
+	}
+}
+
+static int
+draw_compare_vertices(const struct raster_vertex *a, const struct raster_vertex *b)
+{
+	int delta_y = (int)a->y - b->y;
+	if (delta_y != 0)
+		return delta_y;
+	return (int)a->x - b->x;
+}
+
+static void
+draw_triangle(struct drawable *d, struct draw_options options, struct raster_vertex vertices[])
+{
+	qsort(vertices, 3, sizeof(vertices[0]), (int (*)(const void *, const void *))draw_compare_vertices);
+	assert(vertices[0].y <= vertices[1].y && vertices[1].y <= vertices[2].y);
+
+	if (vertices[0].y == vertices[1].y)
+		draw_trapezoid(d, options, vertices[0], vertices[1], vertices[2], vertices[2]);
+	else if (vertices[1].y == vertices[2].y)
+		draw_trapezoid(d, options, vertices[0], vertices[0], vertices[1], vertices[2]);
+	else
+	{
+		//if (vertices[0].x < vertices[1].x)
+		{
+			GLdouble mid = (GLdouble)(vertices[1].y - vertices[0].y) / (vertices[2].y - vertices[0].y);
+			struct raster_vertex mid_vertex;
+			//assert(vertices[2].x <= vertices[0].x);
+			mid_vertex.x = vertices[0].x + mid * ((GLdouble)vertices[2].x - vertices[0].x);
+			mid_vertex.y = vertices[1].y;
+			mid_vertex.depth = vertices[0].depth + mid * (vertices[2].depth - vertices[0].depth);
+			mid_vertex.color = vector4_lerp(vertices[0].color, vertices[2].color, mid);
+			if (mid_vertex.x < vertices[1].x)
+			{
+				draw_trapezoid(d, options, vertices[0], vertices[0], mid_vertex, vertices[1]);
+				draw_trapezoid(d, options, mid_vertex, vertices[1], vertices[2], vertices[2]);
+			}
+			else
+			{
+				draw_trapezoid(d, options, vertices[0], vertices[0], vertices[1], mid_vertex);
+				draw_trapezoid(d, options, vertices[1], mid_vertex, vertices[2], vertices[2]);
+			}
+		}
+	}
+}
+
 void
 draw_polygon(struct drawable *d, struct draw_options options, struct raster_vertex vertices[], u_int num_verts)
 {
@@ -395,8 +521,7 @@ draw_polygon(struct drawable *d, struct draw_options options, struct raster_vert
 		edge->delta_x = edge->upper_coord.x - edge->lower_coord.x;
 		edge->delta_y = edge->upper_coord.y - edge->lower_coord.y;
 		edge->x_num = 0;
-		edge->depth_incr = (edge->upper_coord.depth - edge->lower_coord.depth) /
-				edge->delta_y;
+		edge->depth_incr = (edge->upper_coord.depth - edge->lower_coord.depth) / edge->delta_y;
 		edge->next = NULL;
 		//assert(edge->lower_coord.y < d->window_height);
 		d->edge_table[edge->lower_coord.y] = draw_merge_edges(d->edge_table[edge->lower_coord.y], edge);
@@ -515,6 +640,9 @@ draw_primitive(struct drawable *d,
 			break;
 		case 2:
 			draw_line(d, options, raster_vertices[0], raster_vertices[1]);
+			break;
+		case 3:
+			draw_triangle(d, options, raster_vertices);
 			break;
 		default:
 			draw_polygon(d, options, raster_vertices, num_verts);
