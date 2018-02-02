@@ -1009,12 +1009,6 @@ gl_point_size(GLIContext ctx, GLfloat size)
 }
 
 static void
-gl_polygon_mode(GLIContext ctx, GLenum face, GLenum mode)
-{
-	fprintf(stderr, "TODO: polygon_mode()\n");
-}
-
-static void
 gl_polygon_offset(GLIContext ctx, GLfloat factor, GLfloat units)
 {
 	fprintf(stderr, "TODO: polygon_offset()\n");
@@ -1210,12 +1204,6 @@ static void
 gl_read_pixels(GLIContext ctx, GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels)
 {
 	fprintf(stderr, "TODO: read_pixels()\n");
-}
-
-static void
-gl_rectd(GLIContext ctx, GLdouble x1, GLdouble y1, GLdouble x2, GLdouble y2)
-{
-	fprintf(stderr, "TODO: rectd()\n");
 }
 
 static void

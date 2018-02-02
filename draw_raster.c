@@ -8,37 +8,10 @@
 #include <math.h>
 #include "draw.h"
 #include "window.h"
+#include "raster.h"
 
 #define FLIPPED_Y 0
 #define CLAMP_COLORS 0
-
-struct raster_vertex
-{
-	u_int x, y;
-	GLfloat depth;
-	struct vector4 color;
-};
-
-struct polygon_edge
-{
-	struct raster_vertex upper_coord;
-	struct raster_vertex lower_coord;
-	int delta_x;
-	u_int delta_y;
-	u_int x_num;
-	float depth_incr;
-	struct polygon_edge *next;
-};
-
-struct drawable
-{
-	struct window *window;
-	u_int window_width, window_height;
-	u_int view_x, view_y, view_width, view_height;
-	struct raster_color *color_buffer;
-	GLfloat *depth_buffer;
-	struct polygon_edge **edge_table;
-};
 
 struct drawable *
 draw_create(struct window *w)
@@ -80,70 +53,6 @@ draw_set_view(struct drawable *d, u_int x, u_int y, u_int width, u_int height)
 	d->view_height = height;
 }
 
-static void
-draw_pixel(struct drawable *d, struct draw_options options, struct raster_vertex vertex)
-{
-	assert(vertex.x < d->window_width);
-	assert(vertex.y < d->window_height);
-	if (options.test_depth)
-	{
-		assert(vertex.depth >= 0 && vertex.depth <= 1.0);
-		switch (options.depth_func)
-		{
-			case GL_NEVER:
-				return;
-
-			case GL_LESS:
-				if (vertex.depth < d->depth_buffer[vertex.y * d->window_width + vertex.x])
-					break;
-				else
-					return;
-
-			case GL_ALWAYS:
-				break;
-
-			default:
-				assert(!"Depth func not implemented");
-		}
-		d->depth_buffer[vertex.y * d->window_width + vertex.x] = vertex.depth;
-	}
-	switch (options.draw_op)
-	{
-		case GL_COPY:
-		{
-			struct raster_color *pixel = d->color_buffer + vertex.y * d->window_width + vertex.x;
-#if CLAMP_COLORS
-			pixel->red = round(fmax(fmin(vertex.color.r, 1.0), 0) * 255);
-			pixel->green = round(fmax(fmin(vertex.color.g, 1.0), 0) * 255);
-			pixel->blue = round(fmax(fmin(vertex.color.b, 1.0), 0) * 255);
-			pixel->alpha = round(fmax(fmin(vertex.color.a, 1.0), 0) * 255);
-#else
-			assert(vertex.color.r >= 0 && vertex.color.r <= 1.0);
-			assert(vertex.color.g >= 0 && vertex.color.g <= 1.0);
-			assert(vertex.color.b >= 0 && vertex.color.b <= 1.0);
-			pixel->red = lround(vertex.color.r * 255.0);
-			pixel->green = lround(vertex.color.g * 255.0);
-			pixel->blue = lround(vertex.color.b * 255.0);
-			pixel->alpha = lround(vertex.color.a * 255.0);
-#endif // CLAMP_COLORS
-			break;
-		}
-
-		case GL_NOOP:
-			break;
-
-		default:
-			assert(!"Draw operation not implemented");
-	}
-}
-
-static void
-draw_check_vertex(struct drawable *d, struct raster_vertex v)
-{
-	assert(v.x >= d->view_x && v.x < d->view_x + d->view_width);
-	assert(v.y >= d->view_y && v.y < d->view_y + d->view_height);
-}
-
 void
 draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, bool depth, GLfloat clear_depth)
 {
@@ -157,213 +66,43 @@ draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, boo
 			options.draw_op = (color) ? GL_COPY : GL_NOOP;
 			options.test_depth = depth;
 			options.depth_func = GL_ALWAYS;
-			draw_pixel(d, options, vertex);
+			raster_pixel(d, options, vertex);
 		}
-}
-
-static void
-draw_horiz_line(struct drawable *d,
-                struct draw_options options,
-                struct raster_vertex v1,
-                struct raster_vertex v2,
-                int delta_x)
-{
-	struct raster_vertex v = v1;
-	draw_pixel(d, options, v);
-	int x_step;
-	if (delta_x > 0)
-		x_step = 1;
-	else if (delta_x < 0)
-		x_step = -1;
-	else
-		return;
-	float depth_incr = (v2.depth - v1.depth) / delta_x;
-	while (v.x != v2.x)
-	{
-		v.x+= x_step;
-		v.depth+= depth_incr;
-		GLdouble u = ((GLdouble)v.x - v1.x) / delta_x;
-		v.color = vector4_lerp(v1.color, v2.color, u);
-		draw_pixel(d, options, v);
-	}
-}
-
-static void
-draw_vertical_line(struct drawable *d,
-                   struct draw_options options,
-                   struct raster_vertex v1,
-                   struct raster_vertex v2,
-                   int delta_y)
-{
-	struct raster_vertex v = v1;
-	int y_incr;
-	if (delta_y > 0)
-		y_incr = 1;
-	else
-		y_incr = -1;
-	float depth_incr = (v2.depth - v1.depth) / delta_y;
-	draw_pixel(d, options, v);
-	while (v.y != v2.y)
-	{
-		v.y+= y_incr;
-		v.depth+= depth_incr;
-		GLdouble u = ((GLdouble)v.y - v1.y) / delta_y;
-		v.color = vector4_lerp(v1.color, v2.color, u);
-		draw_pixel(d, options, v);
-	}
-}
-
-static void
-draw_gradual_line(struct drawable *d,
-                  struct draw_options options,
-                  struct raster_vertex v1,
-                  struct raster_vertex v2,
-                  int delta_x,
-                  int delta_y)
-{
-	struct raster_vertex v = v1;
-	assert(v1.x + delta_x == v2.x);
-	assert(abs(delta_y) < abs(delta_x));
-	int x_incr;
-	int actual_delta_x = delta_x;
-	if (delta_x > 0)
-		x_incr = 1;
-	else
-	{
-		x_incr = -1;
-		delta_x = -delta_x;
-	}
-	int y_incr;
-	if (delta_y >= 0)
-		y_incr = 1;
-	else
-	{
-		y_incr = -1;
-		delta_y = -delta_y;
-	}
-	float depth_incr = (v2.depth - v1.depth) / delta_x;
-	int decide = 2 * delta_y - delta_x;
-	int incr_across = 2 * delta_y;
-	int incr_diag = 2 * (delta_y - delta_x);
-	draw_pixel(d, options, v);
-	while (v.x != v2.x)
-	{
-		if (decide <= 0)
-			decide+= incr_across;
-		else
-		{
-			decide+= incr_diag;
-			v.y+= y_incr;
-		}
-		v.x+= x_incr;
-		v.depth+= depth_incr;
-		GLdouble u = ((GLdouble)v.x - v1.x) / actual_delta_x;
-		v.color = vector4_lerp(v1.color, v2.color, u);
-		draw_pixel(d, options, v);
-	}
-}
-
-static void
-draw_steep_line(struct drawable *d,
-                struct draw_options options,
-                struct raster_vertex v1,
-                struct raster_vertex v2,
-                int delta_x,
-                int delta_y)
-{
-	struct raster_vertex v = v1;
-	assert(v1.y + delta_y == v2.y);
-	assert(abs(delta_x) <= abs(delta_y));
-	int x_incr;
-	if (delta_x > 0)
-		x_incr = 1;
-	else
-	{
-		x_incr = -1;
-		delta_x = -delta_x;
-	}
-	int actual_delta_y = delta_y;
-	int y_incr;
-	if (delta_y > 0)
-		y_incr = 1;
-	else
-	{
-		y_incr = -1;
-		delta_y = -delta_y;
-	}
-	int decide = 2 * delta_x - delta_y;
-	int incr_up = 2 * delta_x;
-	int incr_diag = 2 * (delta_x - delta_y);
-	draw_pixel(d, options, v);
-	while (v.y != v2.y)
-	{
-		if (decide <= 0)
-			decide+= incr_up;
-		else
-		{
-			decide += incr_diag;
-			v.x += x_incr;
-		}
-		v.y+= y_incr;
-		GLdouble u = ((GLdouble)v.y - v1.y) / actual_delta_y;
-		v.color = vector4_lerp(v1.color, v2.color, u);
-		draw_pixel(d, options, v);
-	}
 }
 
 static void
 draw_line(struct drawable *d,
           struct draw_options options,
-          struct raster_vertex p1,
-          struct raster_vertex p2)
+          struct device_vertex p1,
+          struct device_vertex p2)
 {
-	int delta_x = p2.x - p1.x;
-	int delta_y = p2.y - p1.y;
+	GLdouble delta_x = p2.coord.x - p1.coord.x;
+	GLdouble delta_y = p2.coord.y - p1.coord.y;
 	if (delta_y == 0)
-		draw_horiz_line(d, options, p1, p2, delta_x);
+	{
+		if (delta_x > 0)
+			raster_horiz_line(d, options, p1, p2);
+		else
+			raster_horiz_line(d, options, p2, p1);
+	}
 	else if (delta_x == 0)
-		draw_vertical_line(d, options, p1, p2, delta_y);
+		raster_vertical_line(d, options, p1, p2);
 	else
 	{
-		if (abs(delta_y) >= abs(delta_x))
-			draw_steep_line(d, options, p1, p2, delta_x, delta_y);
+		if (fabs(delta_y) >= fabs(delta_x))
+		{
+			if (delta_y > 0)
+				raster_steep_line(d, options, p1, p2);
+			else
+				raster_steep_line(d, options, p2, p1);
+		}
 		else
-			draw_gradual_line(d, options, p1, p2, delta_x, delta_y);
-	}
-}
-
-static struct polygon_edge *
-draw_merge_edges(struct polygon_edge *edges1, struct polygon_edge *edges2)
-{
-	struct polygon_edge *head = NULL;
-	struct polygon_edge **tailp = &head;
-	while (edges1 || edges2)
-	{
-		while (edges1 && (!edges2 || edges1->lower_coord.x < edges2->lower_coord.x))
 		{
-			*tailp = edges1;
-			edges1 = edges1->next;
-			tailp = &((*tailp)->next);
+			if (delta_x > 0)
+				raster_gradual_line(d, options, p1, p2);
+			else
+				raster_gradual_line(d, options, p2, p1);
 		}
-		if (edges2)
-		{
-			*tailp = edges2;
-			edges2 = edges2->next;
-			tailp = &((*tailp)->next);
-		}
-	}
-	return head;
-}
-
-static void
-draw_check_edges(struct polygon_edge *edges)
-{
-	u_int min_x = 0;
-	while (edges)
-	{
-		assert(edges->lower_coord.x >= min_x);
-		min_x = edges->lower_coord.x;
-		edges = edges->next;
 	}
 }
 
@@ -391,6 +130,7 @@ draw_create_stepper(struct raster_vertex bottom, struct raster_vertex top)
 	return stepper;
 }
 
+/*
 static void
 draw_stepper_incr(struct vertical_line_stepper *stepper)
 {
@@ -436,11 +176,7 @@ draw_trapezoid(struct drawable *d,
 
 		while (left_stepper.vertex.y != top_left.y)
 		{
-			draw_horiz_line(d,
-			                options,
-			                left_stepper.vertex,
-			                right_stepper.vertex,
-			                right_stepper.vertex.x - left_stepper.vertex.x);
+			//draw_horiz_line(d, options, left_stepper.vertex, right_stepper.vertex);
 			draw_stepper_incr(&left_stepper);
 			draw_stepper_incr(&right_stepper);
 		}
@@ -455,7 +191,9 @@ draw_compare_vertices(const struct raster_vertex *a, const struct raster_vertex 
 		return delta_y;
 	return (int)a->x - b->x;
 }
+ */
 
+/*
 static void
 draw_triangle(struct drawable *d, struct draw_options options, struct raster_vertex vertices[])
 {
@@ -490,128 +228,15 @@ draw_triangle(struct drawable *d, struct draw_options options, struct raster_ver
 		}
 	}
 }
-
-void
-draw_polygon(struct drawable *d, struct draw_options options, struct raster_vertex vertices[], u_int num_verts)
-{
-#ifndef NDEBUG
-	for (u_int assert_y = 0; assert_y < d->window_height; ++assert_y)
-		assert(!d->edge_table[assert_y]);
-#endif
-	struct polygon_edge edges[MAX_PRIMITIVE_VERTICES];
-	u_int min_y = d->window_height;
-	u_int max_y = 0;
-	for (u_int edge_index = 0; edge_index < num_verts; ++edge_index)
-	{
-		struct polygon_edge *edge = &(edges[edge_index]);
-		struct raster_vertex vertex1 = vertices[edge_index], vertex2 = vertices[(edge_index + 1) % num_verts];
-		if (vertex1.y < vertex2.y)
-		{
-			edge->lower_coord = vertex1;
-			edge->upper_coord = vertex2;
-		}
-		else if (vertex1.y > vertex2.y)
-		{
-			edge->lower_coord = vertex2;
-			edge->upper_coord = vertex1;
-		}
-		else
-			continue;
-
-		edge->delta_x = edge->upper_coord.x - edge->lower_coord.x;
-		edge->delta_y = edge->upper_coord.y - edge->lower_coord.y;
-		edge->x_num = 0;
-		edge->depth_incr = (edge->upper_coord.depth - edge->lower_coord.depth) / edge->delta_y;
-		edge->next = NULL;
-		//assert(edge->lower_coord.y < d->window_height);
-		d->edge_table[edge->lower_coord.y] = draw_merge_edges(d->edge_table[edge->lower_coord.y], edge);
-		if (edge->lower_coord.y < min_y)
-			min_y = edge->lower_coord.y;
-		if (edge->upper_coord.y > max_y)
-			max_y = edge->upper_coord.y;
-	}
-	struct polygon_edge *active_edges = NULL;
-	for (u_int y = min_y; y <= max_y; ++y)
-	{
-		active_edges = draw_merge_edges(active_edges, d->edge_table[y]);
-		d->edge_table[y] = NULL;
-#ifndef NDEBUG
-		draw_check_edges(active_edges);
-#endif
-
-		struct polygon_edge *right_edge;
-		for (struct polygon_edge *left_edge = active_edges; left_edge; left_edge = right_edge->next)
-		{
-			right_edge = left_edge->next;
-			if (!right_edge)
-				break;
-
-			if (left_edge->lower_coord.x < right_edge->lower_coord.x)
-			{
-				struct raster_vertex left_vertex;
-				left_vertex.x = left_edge->lower_coord.x;
-				left_vertex.y = y;
-				left_vertex.depth = left_edge->lower_coord.depth;
-				GLdouble left_u = ((GLdouble) y - left_edge->lower_coord.y) / left_edge->delta_y;
-				left_vertex.color = vector4_lerp(left_edge->lower_coord.color,
-				                                 left_edge->upper_coord.color,
-				                                 left_u);
-
-				struct raster_vertex right_vertex;
-				right_vertex.x = right_edge->lower_coord.x;
-				right_vertex.y = y;
-				right_vertex.depth = right_edge->lower_coord.depth;
-				GLdouble right_u = ((GLdouble) y - right_edge->lower_coord.y) / right_edge->delta_y;
-				right_vertex.color = vector4_lerp(right_edge->lower_coord.color,
-				                                  right_edge->upper_coord.color,
-				                                  right_u);
-
-				draw_check_vertex(d, left_vertex);
-				draw_check_vertex(d, right_vertex);
-				draw_horiz_line(d, options, left_vertex, right_vertex, right_vertex.x - left_vertex.x);
-			}
-		}
-		struct polygon_edge *next_active_edges = NULL;
-		while (active_edges)
-		{
-			struct polygon_edge *edge = active_edges;
-
-			edge->lower_coord.depth += edge->depth_incr;
-			if (edge->delta_x > 0)
-			{
-				edge->x_num += edge->delta_x;
-				while (edge->x_num >= edge->delta_y)
-				{
-					++edge->lower_coord.x;
-					edge->x_num -= edge->delta_y;
-				}
-			}
-			else if (edge->delta_x < 0)
-			{
-				edge->x_num-= edge->delta_x;
-				while (edge->x_num >= edge->delta_y)
-				{
-					--edge->lower_coord.x;
-					edge->x_num-= edge->delta_y;
-				}
-			}
-
-			active_edges = edge->next;
-			edge->next = NULL;
-			if (edge->upper_coord.y != y + 1)
-				next_active_edges = draw_merge_edges(next_active_edges, edge);
-		}
-		active_edges = next_active_edges;
-	}
-}
+ */
 
 void
 draw_primitive(struct drawable *d,
                struct draw_options options,
-               struct vector3 vertices[],
-               struct vector4 colors[],
+               const struct device_vertex vertices[],
                u_int num_verts)
 {
+	/*
 	struct raster_vertex raster_vertices[MAX_PRIMITIVE_VERTICES];
 	for (u_int i = 0; i < num_verts; ++i)
 	{
@@ -631,21 +256,43 @@ draw_primitive(struct drawable *d,
 		assert(colors[i].a >= 0 && colors[i].a <= 1.0);
 		raster_vertices[i].color = colors[i];
 	}
+	 */
 
 	switch (num_verts)
 	{
+		/*
 		case 1:
 			draw_check_vertex(d, raster_vertices[0]);
 			draw_pixel(d, options, raster_vertices[0]);
 			break;
+		 */
 		case 2:
-			draw_line(d, options, raster_vertices[0], raster_vertices[1]);
-			break;
-		case 3:
-			draw_triangle(d, options, raster_vertices);
+			draw_line(d, options, vertices[0], vertices[1]);
 			break;
 		default:
-			draw_polygon(d, options, raster_vertices, num_verts);
+			switch (options.polygon_mode)
+			{
+				/*
+				case GL_POINT:
+					for (GLuint i = 0; i < num_verts; ++i)
+						draw_pixel(d, options, raster_vertices[i]);
+					break;
+				 */
+
+				case GL_LINE:
+					for (GLuint i = 0; i < num_verts; ++i)
+						draw_line(d, options, vertices[i], vertices[(i + 1) % num_verts]);
+					break;
+
+				case GL_FILL:
+					/*
+					if (num_verts == 3)
+						raster_triangle(d, options, vertices);
+					else
+					 */
+						raster_polygon(d, options, vertices, num_verts);
+					break;
+			}
 	}
 }
 

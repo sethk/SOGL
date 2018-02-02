@@ -8,7 +8,7 @@
 #include <OpenGL/gl.h>
 
 // Vector operations: from_array, length, add, clamp, sub, mult_scalar, mult_vecN, divide_scalar, norm, check_norm,
-// cross, dot, project, print
+// cross, dot, lerp, project, print
 
 struct vector2
 {
@@ -26,6 +26,7 @@ GLdouble vector2_length(const struct vector2 v);
 struct vector2 vector2_add(const struct vector2 a, const struct vector2 b);
 struct vector2 vector2_divide_scalar(const struct vector2 v, GLdouble divisor);
 struct vector2 vector2_norm(const struct vector2 v);
+void vector2_print(const struct vector2 v, const char *label);
 
 struct vector3
 {
@@ -56,6 +57,7 @@ struct vector3 vector3_norm(const struct vector3 v);
 void vector3_check_norm(const struct vector3 v, const char *label);
 struct vector3 vector3_cross(const struct vector3 a, const struct vector3 b);
 GLdouble vector3_dot(const struct vector3 a, const struct vector3 b);
+struct vector3 vector3_lerp(const struct vector3 a, const struct vector3 b, GLdouble t);
 void vector3_print(const struct vector3 v, const char *label);
 
 struct vector4

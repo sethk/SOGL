@@ -47,7 +47,7 @@ draw_set_view(struct drawable *d, u_int x, u_int y, u_int width, u_int height)
 }
 
 void
-draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, bool depth)
+draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, bool depth, GLfloat clear_depth)
 {
 	d->disp.clear_color(d->rend, clear_color.r, clear_color.g, clear_color.b, clear_color.a);
 	GLenum mask = ((color) ? GL_COLOR_BUFFER_BIT : 0) | ((depth) ? GL_DEPTH_BUFFER_BIT : 0);
@@ -57,8 +57,7 @@ draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, boo
 void
 draw_primitive(struct drawable *d,
                struct draw_options options,
-               struct vector3 coords[],
-               struct vector4 colors[],
+               const struct device_vertex vertices[],
                u_int num_verts)
 {
 	GLenum mode;
@@ -70,7 +69,7 @@ draw_primitive(struct drawable *d,
 		case 4: mode = GL_QUADS; break;
 		default: mode = GL_POLYGON;
 	}
-	glLogicOp(options.draw_op);
+	d->disp->logic_op(d->rend, options.draw_op);
 	if (options.test_depth)
 		d->disp.enable(d->rend, GL_DEPTH_TEST);
 	else
@@ -78,8 +77,8 @@ draw_primitive(struct drawable *d,
 	d->disp.begin(d->rend, mode);
 	for (GLuint i = 0; i < num_verts; ++i)
 	{
-		d->disp.color4dv(d->rend, colors[i].v);
-		d->disp.vertex3dv(d->rend, coords[i].v);
+		d->disp.color4dv(d->rend, vertices[i].color.v);
+		d->disp.vertex3dv(d->rend, vertices[i].coord.v);
 	}
 	d->disp.end(d->rend);
 	//d->disp.flush(d->rend);

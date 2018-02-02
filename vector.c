@@ -126,6 +126,12 @@ vector2_norm(const struct vector2 v)
 	return nv;
 }
 
+void
+vector2_print(const struct vector2 v, const char *label)
+{
+	vector_print(v.v, 2, label);
+}
+
 struct vector3
 vector3_from_array(const GLdouble *vv)
 {
@@ -220,6 +226,14 @@ GLdouble
 vector3_dot(const struct vector3 a, const struct vector3 b)
 {
 	return vector_dot(a.v, b.v, 3);
+}
+
+struct vector3
+vector3_lerp(const struct vector3 a, const struct vector3 b, GLdouble t)
+{
+	if (t < 0 || t > 1)
+		fprintf(stderr, "%s: invalid t %g\n", __FUNCTION__, t);
+	return vector3_add(vector3_mult_scalar(a, 1 - t), vector3_mult_scalar(b, t));
 }
 
 void

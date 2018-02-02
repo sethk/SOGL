@@ -6,6 +6,7 @@
 #define SOGL_WINDOW_H
 
 #include <sys/types.h>
+#include <stdbool.h>
 
 struct window
 {

@@ -70,6 +70,7 @@ struct draw_options draw_options =
 	.draw_op = GL_COPY,
 	.test_depth = false,
 	.depth_func = GL_LESS,
+	.polygon_mode = GL_FILL
 };
 static const struct vector4 origin = {.x = 0, .y = 0, .z = 0, .w = 1};
 static GLuint primitive_index;
@@ -433,16 +434,17 @@ render_primitive(const struct modelview modelview,
 	{
 		struct shaded_vertex shaded[MAX_PRIMITIVE_VERTICES];
 		render_shade_vertices(modelview, proj, vertices, indices, num_vertices, lighting, shaded);
-		struct vector3 coords[MAX_PRIMITIVE_VERTICES];
-		struct vector4 colors[MAX_PRIMITIVE_VERTICES];
+		struct device_vertex device_vertices[MAX_PRIMITIVE_VERTICES];
+		//struct vector3 coords[MAX_PRIMITIVE_VERTICES];
+		//struct vector4 colors[MAX_PRIMITIVE_VERTICES];
 		for (GLuint i = 0; i < num_vertices; ++i)
 		{
-			colors[i] = render_shade_pixel(vertices[indices[i]].mat, shaded[i], lighting);
-			coords[i] = vector4_project(shaded[i].view_pos);
+			device_vertices[i].coord = vector4_project(shaded[i].view_pos);
+			device_vertices[i].color = render_shade_pixel(vertices[indices[i]].mat, shaded[i], lighting);
 		}
 
 		render_primitive_debug(modelview, proj, vertices, indices, num_vertices, lighting);
-		draw_primitive(drawable, draw_options, coords, colors, num_vertices);
+		draw_primitive(drawable, draw_options, device_vertices, num_vertices);
 	}
 
 	++primitive_index;
@@ -969,6 +971,17 @@ gl_recti(GLIContext ctx, GLint x1, GLint y1, GLint x2, GLint y2)
 }
 
 static void
+gl_rectd(GLIContext ctx, GLdouble x1, GLdouble y1, GLdouble x2, GLdouble y2)
+{
+	gl_begin(ctx, GL_QUADS);
+	gl_vertex2d(ctx, x1, y1);
+	gl_vertex2d(ctx, x2, y1);
+	gl_vertex2d(ctx, x2, y2);
+	gl_vertex2d(ctx, x1, y2);
+	gl_end(ctx);
+}
+
+static void
 gl_clear(GLIContext rend, GLbitfield mask)
 {
 	if (mask & ~(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT))
@@ -1031,6 +1044,12 @@ static void
 gl_depth_func(GLIContext ctx, GLenum func)
 {
 	draw_options.depth_func = func;
+}
+
+static void
+gl_polygon_mode(GLIContext ctx, GLenum face, GLenum mode)
+{
+	draw_options.polygon_mode = mode;
 }
 
 static void
