@@ -100,8 +100,6 @@ raster_vertical_line(struct drawable *d, struct draw_options options, struct dev
 {
 }
 
-typedef double scalar_t;
-
 struct implicit_line2
 {
 	struct vector2 norm;
@@ -112,7 +110,7 @@ raster_make_edge(const struct vector2 p1, const struct vector2 p2)
 {
 	struct vector2 diff = vector2_sub(p2, p1);
 	struct implicit_line2 edge;
-	edge.norm = vector2_norm((struct vector2){-diff.y, diff.x});
+	edge.norm = vector2_norm((struct vector2){.x = -diff.y, .y = diff.x});
 	edge.w = vector2_dot(edge.norm, p1);
 	return edge;
 }
@@ -121,7 +119,11 @@ void
 raster_polygon(struct drawable *d, struct draw_options options, const struct device_vertex dverts[], u_int num_verts)
 {
 	struct implicit_line edges[MAX_PRIMITIVE_VERTICES];
-	for ()
+	for (u_int i = 0; i < num_verts; ++i)
+	{
+		edges[i] = raster_make_edge()
+	}
+
 	struct raster_vertex v;
 	v.color = (struct vector4){.v = {1, 1, 1, 1}};
 	for (v.x = d->view_x; v.x < d->view_x + d->view_width; ++v.x)

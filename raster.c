@@ -2,6 +2,7 @@
 // Created by Seth Kingsley on 1/25/18.
 //
 
+#include <OpenGL/gl.h>
 #include <assert.h>
 #include <math.h>
 #include "raster.h"

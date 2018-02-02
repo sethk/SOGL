@@ -9,49 +9,49 @@
 #include "matrix.h"
 #include "math.h"
 
-static GLdouble matrix_det(const GLdouble *mv, GLuint dim);
+static scalar_t matrix_det(const scalar_t *mv, u_int dim);
 
 static void
-matrix_mult_matrix(const GLdouble *mv, const GLdouble *nv, GLuint num_cols, GLuint num_rows, GLdouble *rmv)
+matrix_mult_matrix(const scalar_t *mv, const scalar_t *nv, u_int num_cols, u_int num_rows, scalar_t *rmv)
 {
-	for (GLuint col = 0; col < num_cols; ++col)
-		for (GLuint row = 0; row < num_rows; ++row)
+	for (u_int col = 0; col < num_cols; ++col)
+		for (u_int row = 0; row < num_rows; ++row)
 		{
-			GLdouble dot = 0;
-			for (GLuint i = 0; i < num_cols; ++i)
+			scalar_t dot = 0;
+			for (u_int i = 0; i < num_cols; ++i)
 				dot+= mv[i * num_cols + row] * nv[col * num_cols + i];
 			rmv[col * num_rows + row] = dot;
 		}
 }
 
 static void
-matrix_print(const GLdouble *mv, GLuint num_cols, GLuint num_rows, const char *label)
+matrix_print(const scalar_t *mv, u_int num_cols, u_int num_rows, const char *label)
 {
-	GLuint label_line = num_rows / 2;
+	u_int label_line = num_rows / 2;
 	int label_width = strlen(label);
-	for (GLuint row = 0; row < num_rows; ++row)
+	for (u_int row = 0; row < num_rows; ++row)
 	{
 		fprintf(stderr, "%*s ", label_width, (row == label_line) ? label : "");
 		fputc('[', stderr);
-		for (GLuint col = 0; col < num_cols; ++col)
+		for (u_int col = 0; col < num_cols; ++col)
 			fprintf(stderr, "%s% 5.3g", (col > 0) ? ", " : "", mv[col * num_rows + row]);
 		fputs("]\n", stderr);
 	}
 }
 
 static void
-matrix_submatrix(const GLdouble *mv,
-                 GLuint num_cols,
-                 GLuint num_rows,
-                 GLuint without_col,
-                 GLuint without_row,
-                 GLdouble *smv)
+matrix_submatrix(const scalar_t *mv,
+                 u_int num_cols,
+                 u_int num_rows,
+                 u_int without_col,
+                 u_int without_row,
+                 scalar_t *smv)
 {
-	GLuint num_sub_rows = num_rows - 1;
-	for (GLuint super_col = 0, sub_col = 0; super_col < num_cols; ++super_col)
+	u_int num_sub_rows = num_rows - 1;
+	for (u_int super_col = 0, sub_col = 0; super_col < num_cols; ++super_col)
 		if (super_col != without_col)
 		{
-			for (GLuint super_row = 0, sub_row = 0; super_row < num_rows; ++super_row)
+			for (u_int super_row = 0, sub_row = 0; super_row < num_rows; ++super_row)
 			{
 				if (super_row != without_row)
 				{
@@ -63,25 +63,25 @@ matrix_submatrix(const GLdouble *mv,
 		}
 }
 
-static GLdouble
-matrix_minor(const GLdouble *mv, GLuint dim, GLuint without_col, GLuint without_row)
+static scalar_t
+matrix_minor(const scalar_t *mv, u_int dim, u_int without_col, u_int without_row)
 {
-	GLuint sub_dim = dim - 1;
-	GLdouble *smv = alloca(sizeof(GLdouble) * sub_dim * sub_dim);
+	u_int sub_dim = dim - 1;
+	scalar_t *smv = alloca(sizeof(scalar_t) * sub_dim * sub_dim);
 	matrix_submatrix(mv, dim, dim, without_col, without_row, smv);
 	return matrix_det(smv, sub_dim);
 }
 
 static void
-matrix_minors(const GLdouble *mv, GLuint dim, GLdouble *minorv)
+matrix_minors(const scalar_t *mv, u_int dim, scalar_t *minorv)
 {
-	for (GLuint col = 0; col < dim; ++col)
-		for (GLuint row = 0; row < dim; ++row)
+	for (u_int col = 0; col < dim; ++col)
+		for (u_int row = 0; row < dim; ++row)
 			minorv[col * dim + row] = matrix_minor(mv, dim, col, row);
 }
 
-static GLdouble
-matrix_det(const GLdouble *mv, GLuint dim)
+static scalar_t
+matrix_det(const scalar_t *mv, u_int dim)
 {
 	if (dim == 1)
 		return mv[0];
@@ -89,10 +89,10 @@ matrix_det(const GLdouble *mv, GLuint dim)
 		return mv[0] * mv[3] - mv[2] * mv[1];
 	else
 	{
-		GLdouble det = 0;
-		for (GLuint col = 0; col < dim; ++col)
+		scalar_t det = 0;
+		for (u_int col = 0; col < dim; ++col)
 		{
-			GLdouble minor = matrix_minor(mv, dim, col, 0);
+			scalar_t minor = matrix_minor(mv, dim, col, 0);
 			if (minor != 0)
 			{
 				if (col % 2 == 0)
@@ -106,35 +106,35 @@ matrix_det(const GLdouble *mv, GLuint dim)
 }
 
 static void
-matrix_trans_square(const GLdouble *mv, GLuint dim, GLdouble *tmv)
+matrix_trans_square(const scalar_t *mv, u_int dim, scalar_t *tmv)
 {
-	for (GLuint col = 0; col + 1 < dim; ++col)
-		for (GLuint row = col + 1; row < dim; ++row)
+	for (u_int col = 0; col + 1 < dim; ++col)
+		for (u_int row = col + 1; row < dim; ++row)
 		{
-			GLdouble tmp = mv[col * dim + row];
+			scalar_t tmp = mv[col * dim + row];
 			tmv[col * dim + row] = mv[row * dim + col];
 			tmv[row * dim + col] = tmp;
 		}
 }
 
 static void
-matrix_divide_scalar(const GLdouble *mv, GLuint num_cols, GLuint num_rows, GLdouble divisor, GLdouble *rm)
+matrix_divide_scalar(const scalar_t *mv, u_int num_cols, u_int num_rows, scalar_t divisor, scalar_t *rm)
 {
-	for (GLuint col = 0; col < num_cols; ++col)
-		for (GLuint row = 0; row < num_rows; ++row)
+	for (u_int col = 0; col < num_cols; ++col)
+		for (u_int row = 0; row < num_rows; ++row)
 			rm[col * num_rows + row]/= divisor;
 }
 
 static void
-matrix_invert_trans(const GLdouble *mv, GLuint dim, GLdouble *amv)
+matrix_invert_trans(const scalar_t *mv, u_int dim, scalar_t *amv)
 {
 	assert(mv != amv);
-	GLdouble det = matrix_det(mv, dim);
+	scalar_t det = matrix_det(mv, dim);
 	assert(det != 0);
 	matrix_minors(mv, dim, amv);
 	//matrix_print(imv, dim, dim, "minors");
-	for (GLuint col = 0; col < dim; ++col)
-		for (GLuint row = 0; row < dim; ++row)
+	for (u_int col = 0; col < dim; ++col)
+		for (u_int row = 0; row < dim; ++row)
 			if ((col + row) % 2 == 1)
 				amv[col * dim + row] = -amv[col * dim + row];
 	//matrix_print(imv, dim, dim, "transpose cofactors AKA classic adjoint");
@@ -142,21 +142,21 @@ matrix_invert_trans(const GLdouble *mv, GLuint dim, GLdouble *amv)
 }
 
 static void
-matrix_invert(const GLdouble *mv, GLuint dim, GLdouble *imv)
+matrix_invert(const scalar_t *mv, u_int dim, scalar_t *imv)
 {
 	matrix_invert_trans(mv, dim, imv);
 	matrix_trans_square(imv, dim, imv);
 }
 
 static void
-matrix_check_inverse(const GLdouble *mv, GLuint dim, const GLdouble *imv)
+matrix_check_inverse(const scalar_t *mv, u_int dim, const scalar_t *imv)
 {
-	GLdouble *iv = alloca(sizeof(GLdouble) * dim * dim);
+	scalar_t *iv = alloca(sizeof(scalar_t) * dim * dim);
 	matrix_mult_matrix(mv, imv, dim, dim, iv);
-	for (GLuint col = 0; col < 4; ++col)
-		for (GLuint row = 0; row < 4; ++row)
+	for (u_int col = 0; col < 4; ++col)
+		for (u_int row = 0; row < 4; ++row)
 		{
-			GLdouble expect = (col == row) ? 1.0 : 0;
+			scalar_t expect = (col == row) ? 1.0 : 0;
 			if (fabs(iv[col * dim + row] - expect) > 1.0e-7)
 			{
 				fprintf(stderr, "matrix × inverse ≠ identity\n");
@@ -169,25 +169,25 @@ matrix_check_inverse(const GLdouble *mv, GLuint dim, const GLdouble *imv)
 }
 
 static void
-matrix_mult_vector(const GLdouble *mv, GLuint num_cols, GLuint num_rows, const GLdouble *vv, GLdouble *resultv)
+matrix_mult_vector(const scalar_t *mv, u_int num_cols, u_int num_rows, const scalar_t *vv, scalar_t *resultv)
 {
 	assert(vv != resultv);
-	for (GLuint row = 0; row < num_rows; ++row)
+	for (u_int row = 0; row < num_rows; ++row)
 	{
-		GLdouble dot = 0;
-		for (GLuint col = 0; col < num_cols; ++col)
+		scalar_t dot = 0;
+		for (u_int col = 0; col < num_cols; ++col)
 			dot+= mv[col * num_rows + row] * vv[col];
 		resultv[row] = dot;
 	}
 }
 
-GLdouble
-matrix3x3_minor(const struct matrix3x3 m, GLuint without_col, GLuint without_row)
+scalar_t
+matrix3x3_minor(const struct matrix3x3 m, u_int without_col, u_int without_row)
 {
 	return matrix_minor(m.m, 3, without_col, without_row);
 }
 
-GLdouble
+scalar_t
 matrix3x3_det(const struct matrix3x3 m)
 {
 	return matrix_det(m.m, 3);
@@ -214,7 +214,7 @@ matrix3x3_print(const struct matrix3x3 m, const char *label)
 }
 
 void
-matrix4x4_copy_linear(const GLdouble *ma, struct matrix4x4 *rm)
+matrix4x4_copy_linear(const scalar_t *ma, struct matrix4x4 *rm)
 {
 	bcopy(ma, rm->m, sizeof(rm->m));
 }
@@ -236,13 +236,13 @@ matrix4x4_mult_vector4(const struct matrix4x4 m, const struct vector4 v)
 }
 
 struct matrix4x4
-matrix4x4_make_rotation(GLdouble angle, GLdouble x, GLdouble y, GLdouble z)
+matrix4x4_make_rotation(scalar_t angle, scalar_t x, scalar_t y, scalar_t z)
 {
 	struct vector3 axis = {.x = x, .y = y, .z = z};
 	vector3_check_norm(axis, "rotation axis");
-	GLdouble angle_rad = angle / (180.0 / M_PI);
-	GLdouble c = cos(angle_rad);
-	GLdouble s = sin(angle_rad);
+	scalar_t angle_rad = angle / (180.0 / M_PI);
+	scalar_t c = cos(angle_rad);
+	scalar_t s = sin(angle_rad);
 	struct matrix4x4 m;
 	m.cols[0][0] = x * x * (1 - c) + c;
 	m.cols[0][1] = y * x * (1 - c) + z * s;
@@ -262,13 +262,13 @@ matrix4x4_make_rotation(GLdouble angle, GLdouble x, GLdouble y, GLdouble z)
 }
 
 struct matrix4x4
-matrix4x4_make_scaling(GLdouble x, GLdouble y, GLdouble z)
+matrix4x4_make_scaling(scalar_t x, scalar_t y, scalar_t z)
 {
 	struct matrix4x4 m = {.cols = {{x, 0, 0, 0}, {0, y, 0, 0}, {0, 0, z, 0}, {0, 0, 0, 1}}};
 	return m;
 }
 
-GLdouble
+scalar_t
 matrix4x4_det(const struct matrix4x4 m)
 {
 	return matrix_det(m.m, 4);

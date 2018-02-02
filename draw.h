@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 #include <stdbool.h>
+#include <OpenGL/OpenGL.h>
 #include "vector.h"
 
 struct window;
