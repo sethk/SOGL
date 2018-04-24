@@ -16,7 +16,7 @@ display(void)
 	struct vector2 a = {.x = 0.2, .y = 0.8};
 	struct vector2 b = {.x = 0.8, .y = 0.2};
 	struct vector2 c = vector2_norm(vector2_add(a, b));
-	struct vector3 normal3 = {.xy = c, .z = 0};
+	struct vector3 normal3 = {.x = c.x, .y = c.y, .z = 0};
 
 	glClear(GL_COLOR_BUFFER_BIT);
 	glBegin(GL_LINES);
