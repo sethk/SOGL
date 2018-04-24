@@ -2,6 +2,7 @@
 // Created by Seth Kingsley on 1/12/18.
 //
 
+#include <OpenGL/gl.h>
 #include <stdlib.h>
 #include <err.h>
 #include <assert.h>
@@ -11,7 +12,7 @@
 #include "raster.h"
 
 #define FLIPPED_Y 0
-#define CLAMP_COLORS 0
+#define TRIANGULATE_POLYGONS 1
 
 struct drawable *
 draw_create(struct window *w)
@@ -59,8 +60,8 @@ draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, boo
 	struct raster_vertex vertex;
 	vertex.depth = clear_depth;
 	vertex.color = clear_color;
-	for (vertex.y = 0; vertex.y < d->window_height; ++vertex.y)
-		for (vertex.x = 0; vertex.x < d->window_width; ++vertex.x)
+	for (vertex.coord.y = 0; vertex.coord.y < d->window_height; ++vertex.coord.y)
+		for (vertex.coord.x = 0; vertex.coord.x < d->window_width; ++vertex.coord.x)
 		{
 			struct draw_options options;
 			options.draw_op = (color) ? GL_COPY : GL_NOOP;
@@ -76,8 +77,8 @@ draw_line(struct drawable *d,
           struct device_vertex p1,
           struct device_vertex p2)
 {
-	GLdouble delta_x = p2.coord.x - p1.coord.x;
-	GLdouble delta_y = p2.coord.y - p1.coord.y;
+	scalar_t delta_x = p2.coord.x - p1.coord.x;
+	scalar_t delta_y = p2.coord.y - p1.coord.y;
 	if (delta_y == 0)
 	{
 		if (delta_x > 0)
@@ -109,21 +110,21 @@ draw_line(struct drawable *d,
 struct vertical_line_stepper
 {
 	struct raster_vertex vertex;
-	int delta_x;
-	u_int delta_y;
+	raster_dist_t delta_x;
+	raster_dist_t delta_y;
 	u_int x_num;
-	float depth_incr;
+	scalar_t depth_incr;
 	struct vector4 color_incr;
 };
 
 struct vertical_line_stepper
 draw_create_stepper(struct raster_vertex bottom, struct raster_vertex top)
 {
-	assert(bottom.y < top.y);
+	assert(bottom.coord.y < top.coord.y);
 	struct vertical_line_stepper stepper;
 	stepper.vertex = bottom;
-	stepper.delta_x = top.x - bottom.x;
-	stepper.delta_y = top.y - bottom.y;
+	stepper.delta_x = top.coord.x - bottom.coord.x;
+	stepper.delta_y = top.coord.y - bottom.coord.y;
 	stepper.x_num = 0;
 	stepper.depth_incr = (top.depth - bottom.depth) / stepper.delta_y;
 	stepper.color_incr = vector4_divide_scalar(vector4_sub(top.color, bottom.color), stepper.delta_y);
@@ -260,24 +261,19 @@ draw_primitive(struct drawable *d,
 
 	switch (num_verts)
 	{
-		/*
 		case 1:
-			draw_check_vertex(d, raster_vertices[0]);
-			draw_pixel(d, options, raster_vertices[0]);
+			raster_pixel(d, options, raster_from_device(d, vertices[0]));
 			break;
-		 */
 		case 2:
 			draw_line(d, options, vertices[0], vertices[1]);
 			break;
 		default:
 			switch (options.polygon_mode)
 			{
-				/*
 				case GL_POINT:
 					for (GLuint i = 0; i < num_verts; ++i)
-						draw_pixel(d, options, raster_vertices[i]);
+						raster_pixel(d, options, raster_from_device(d, vertices[i]));
 					break;
-				 */
 
 				case GL_LINE:
 					for (GLuint i = 0; i < num_verts; ++i)
@@ -285,12 +281,23 @@ draw_primitive(struct drawable *d,
 					break;
 
 				case GL_FILL:
-					/*
 					if (num_verts == 3)
 						raster_triangle(d, options, vertices);
 					else
-					 */
+					{
+#if TRIANGULATE_POLYGONS
+						struct device_vertex tri_verts[3];
+						tri_verts[0] = vertices[0];
+						for (GLuint i = 1; i < num_verts - 1; i+= 1)
+						{
+							tri_verts[1] = vertices[i];
+							tri_verts[2] = vertices[i + 1];
+							raster_triangle(d, options, tri_verts);
+						}
+#else
 						raster_polygon(d, options, vertices, num_verts);
+#endif
+					}
 					break;
 			}
 	}

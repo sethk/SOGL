@@ -7,36 +7,47 @@
 #include <math.h>
 #include "raster.h"
 
-GLdouble
-raster_x_from_device(struct drawable *d, GLdouble dx)
+#define CLAMP_COLORS 1
+
+scalar_t
+raster_x_from_device(struct drawable *d, scalar_t dx)
 {
 	return (dx + 1.0) * (d->view_width / 2.0) + d->view_x;
+}
+
+scalar_t
+raster_z_from_device(struct drawable *d, scalar_t dz)
+{
+	return (dz + 1.0) / 2.0;
 }
 
 struct raster_vertex
 raster_from_device(struct drawable *d, struct device_vertex dv)
 {
 	struct raster_vertex rv;
-	rv.x = lround(raster_x_from_device(d, dv.coord.x));
-	rv.y = d->view_y + lround(((dv.coord.y + 1.0) / 2.0) * d->view_height);
+	rv.coord.x = lround(raster_x_from_device(d, dv.coord.x));
+	rv.coord.y = d->view_y + lround(((dv.coord.y + 1.0) / 2.0) * d->view_height);
 	rv.color = dv.color;
-	rv.depth = (dv.coord.z + 1.0) / 2.0;
+	rv.depth = raster_z_from_device(d, dv.coord.z);
 	return rv;
 }
 
-struct vector2 raster_to_device(struct drawable *d, struct raster_vertex rv)
+struct vector2
+raster_to_device(struct drawable *d, struct raster_coord rc)
 {
 	struct vector2 dv;
-	dv.x = (((GLdouble)rv.x + 0.5) - d->view_x) / (d->view_width / 2.0) - 1.0;
-	dv.y = (((GLdouble)rv.y + 0.5) - d->view_y) / (d->view_height / 2.0) - 1.0;
+	dv.x = (((GLdouble)rc.x + 0.5) - d->view_x) / (d->view_width / 2.0) - 1.0;
+	dv.y = (((GLdouble)rc.y + 0.5) - d->view_y) / (d->view_height / 2.0) - 1.0;
 	return dv;
 }
 
 void
 raster_pixel(struct drawable *d, struct draw_options options, struct raster_vertex vertex)
 {
-	assert(vertex.x < d->window_width);
-	assert(vertex.y < d->window_height);
+	assert(vertex.coord.x >= 0);
+	assert(vertex.coord.x < d->window_width);
+	assert(vertex.coord.y >= 0);
+	assert(vertex.coord.y < d->window_height);
 	if (options.test_depth)
 	{
 		assert(vertex.depth >= 0 && vertex.depth <= 1.0);
@@ -46,7 +57,7 @@ raster_pixel(struct drawable *d, struct draw_options options, struct raster_vert
 				return;
 
 			case GL_LESS:
-				if (vertex.depth < d->depth_buffer[vertex.y * d->window_width + vertex.x])
+				if (vertex.depth < d->depth_buffer[vertex.coord.y * d->window_width + vertex.coord.x])
 					break;
 				else
 					return;
@@ -57,13 +68,13 @@ raster_pixel(struct drawable *d, struct draw_options options, struct raster_vert
 			default:
 				assert(!"Depth func not implemented");
 		}
-		d->depth_buffer[vertex.y * d->window_width + vertex.x] = vertex.depth;
+		d->depth_buffer[vertex.coord.y * d->window_width + vertex.coord.x] = vertex.depth;
 	}
 	switch (options.draw_op)
 	{
 		case GL_COPY:
 		{
-			struct raster_color *pixel = d->color_buffer + vertex.y * d->window_width + vertex.x;
+			struct raster_color *pixel = d->color_buffer + vertex.coord.y * d->window_width + vertex.coord.x;
 #if CLAMP_COLORS
 			pixel->red = round(fmax(fmin(vertex.color.r, 1.0), 0) * 255);
 			pixel->green = round(fmax(fmin(vertex.color.g, 1.0), 0) * 255);

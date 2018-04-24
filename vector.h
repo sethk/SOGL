@@ -5,7 +5,10 @@
 #ifndef SOGL_VECTOR_H
 #define SOGL_VECTOR_H
 
+#include <float.h>
+
 typedef double scalar_t;
+#define SCALAR_EPSILON DBL_EPSILON
 
 // Vector operations: from_array, length, add, clamp, sub, mult_scalar, mult_vecN, divide_scalar, norm, check_norm,
 // cross, dot, lerp, project, print
@@ -27,7 +30,7 @@ struct vector2 vector2_add(const struct vector2 a, const struct vector2 b);
 struct vector2 vector2_sub(const struct vector2 a, const struct vector2 b);
 struct vector2 vector2_divide_scalar(const struct vector2 v, scalar_t divisor);
 struct vector2 vector2_norm(const struct vector2 v);
-struct vector2 vector2_dot(const struct vector2 a, const struct vector2 b);
+scalar_t vector2_dot(const struct vector2 a, const struct vector2 b);
 void vector2_print(const struct vector2 v, const char *label);
 
 struct vector3

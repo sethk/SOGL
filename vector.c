@@ -133,9 +133,10 @@ vector2_norm(const struct vector2 v)
 	return nv;
 }
 
-struct vector2
+scalar_t
 vector2_dot(const struct vector2 a, const struct vector2 b)
 {
+	return vector_dot(a.v, b.v, 2);
 }
 
 void
