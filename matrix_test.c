@@ -10,7 +10,7 @@ int
 main(void)
 {
 	struct matrix3x3 m3 = {.cols = {{1, 4, 2}, {3, 1, 5}, {2, 3, 2}}};
-	GLdouble det = matrix3x3_minor(m3, 0, 1);
+	scalar_t det = matrix3x3_minor(m3, 0, 1);
 	matrix3x3_print(m3, "minor(0, 1)");
 	fprintf(stderr, "= %g\n", det);
 	assert(det == -4);
