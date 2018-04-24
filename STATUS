@@ -1,0 +1,18 @@
+                    raster_slow                             raster_fast
+=== Correct
+cube                Correct
+flat                Correct
+material            Correct
+movelight           Correct (without teapot)
+n64                 Correct
+scene               Correct
+sphere              Correct
+
+=== Almost correct
+glutplane           Slight mangling of colors
+simple              Triangle has notches
+prim                Missing lines; points out of alignment
+
+=== Incorrect
+overlap             Fails overlap test
+raster_test         Doesn't draw lines
