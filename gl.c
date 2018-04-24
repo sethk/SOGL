@@ -1277,7 +1277,6 @@ gl_translatef(GLIContext rend, GLfloat x, GLfloat y, GLfloat z)
 static void
 gl_clear_color(GLIContext rend, GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
 {
-	fprintf(stderr, "%s() TODO\n", __FUNCTION__);
 	clear_color.r = red;
 	clear_color.b = blue;
 	clear_color.g = green;
@@ -1352,7 +1351,8 @@ gl_viewport(GLIContext rend, GLint x, GLint y, GLsizei width, GLsizei height)
 static void
 gl_shade_model(GLIContext rend, GLenum mode)
 {
-	fprintf(stderr, "%s() TODO\n", __FUNCTION__);
+	if (mode != GL_SMOOTH)
+		fprintf(stderr, "%s() TODO\n", __FUNCTION__);
 	//opengl_disp.shade_model(opengl_rend, mode);
 }
 
