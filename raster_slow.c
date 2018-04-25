@@ -3,6 +3,8 @@
 //
 
 #include <sys/param.h>
+#include <math.h>
+#include <assert.h>
 #include "draw.h"
 #include "raster.h"
 
@@ -30,98 +32,68 @@ raster_cliprect_update(struct raster_rect *rect, struct raster_coord rcoord, str
 	rect->max.y = MAX(clipped.y, rect->max.y);
 }
 
-/*
-static raster_loc_t
-draw_convert_x_bias(struct drawable *d, GLdouble dx, GLdouble bias)
-{
-	return d->view_x + lround(((dx + 1.0) / 2.0) * d->view_width + bias);
-}
- */
-
-static struct device_vertex
-raster_device_lerp(struct device_vertex p1, struct device_vertex p2, GLdouble t)
-{
-	struct device_vertex dv;
-	dv.coord = vector3_lerp(p1.coord, p2.coord, t);
-	dv.color = vector4_lerp(p1.color, p2.color, t);
-	return dv;
-}
-
 void
 raster_horiz_line(struct drawable *d, struct draw_options options, struct device_vertex p1, struct device_vertex p2)
 {
 	raster_gradual_line(d, options, p1, p2);
 }
 
-/*
-static bool
-raster_check_clipped(struct drawable *d, struct raster_vertex rv)
-{
-	return (rv.x >= d->view_x &&
-			rv.x < d->view_x + d->view_width &&
-			rv.y >= d->view_y &&
-			rv.y < d->view_y + d->view_width);
-}
- */
-
 void
 raster_gradual_line(struct drawable *d, struct draw_options options, struct device_vertex p1, struct device_vertex p2)
 {
-#if 0
-	GLdouble rx1 = raster_convert_device_x(d, p1.coord.x);
-	GLdouble rx2 = raster_convert_device_x(d, p2.coord.x);
-	GLdouble delta_x = rx2 - rx1;
-	assert(delta_x >= 0);
-	if (delta_x == 0)
-		return;
-	/*
-	double dy = p2.coord.y - p1.coord.y;
-	double dx = p2.coord.x - p1.coord.x;
-	assert(fabs(dy) <= fabs(dx));
-	double m = dy / dx;
-	double y = p1.coord.y;
-	raster_loc_t max_x = draw_convert_x(d, p2.coord.x);
-	 */
-	for (raster_loc_t x = d->view_x; x < d->view_x + d->view_width; ++x)
+	scalar_t device_delta_x = p2.coord.x - p1.coord.x;
+	scalar_t device_delta_y = p2.coord.y - p1.coord.y;
+	assert(fabs(device_delta_y) <= fabs(device_delta_x));
+	struct raster_vertex rvert = raster_from_device(d, p1);
+	raster_loc_t p1_x = rvert.coord.x;
+	raster_loc_t p2_x = raster_x_from_device(d, p2.coord.x);
+	raster_dist_t delta_x = p2_x - rvert.coord.x;
+	raster_dist_t x_step;
+	if (delta_x > 0)
+		x_step = 1;
+	else
+		x_step = -1;
+	while (rvert.coord.x != p2_x)
 	{
-		GLdouble x_offset = (GLdouble)x - rx1;
-		if (x_offset >= 0 && x_offset <= delta_x)
-		{
-			GLdouble t = x_offset / delta_x;
-		}
-			/*
-		struct device_vertex dv = draw_device_lerp(p1, p2, t);
-		struct raster_vertex rv = draw_convert_vertex(d, dv);
-		if (draw_check_clipped(d, rv))
-			draw_pixel(d, options, rv);
-			 */
+		raster_pixel(d, options, rvert);
+		scalar_t t = (scalar_t)(rvert.coord.x - p1_x) / delta_x;
+		assert(t >= 0.0 && t <= 1.0);
+		rvert.coord.y = raster_y_from_device(d, p1.coord.y + t * device_delta_y);
+		rvert.color = vector4_lerp(p1.color, p2.color, t);
+		rvert.coord.x+= x_step;
 	}
-#endif // 0
 }
 
 void
 raster_steep_line(struct drawable *d, struct draw_options options, struct device_vertex p1, struct device_vertex p2)
 {
-	/*
-	assert(p1.y < p2.y);
-	double dy = p2.y - p1.y;
-	double dx = p2.x - p1.x;
-	assert(fabs(dx) <= fabs(dy));
-	double inv_m = dx / dy;
-	double x = p1.x;
-	for (struct raster_vertex v = p1; v.y <= p2.y; ++v.y)
+	double device_delta_x = p2.coord.x - p1.coord.x;
+	double device_delta_y = p2.coord.y - p1.coord.y;
+	assert(fabs(device_delta_x) <= fabs(device_delta_y));
+	struct raster_vertex rvert = raster_from_device(d, p1);
+	raster_loc_t p1_y = rvert.coord.y;
+	raster_loc_t p2_y = raster_y_from_device(d, p2.coord.y);
+	raster_dist_t delta_y = p2_y - rvert.coord.y;
+	raster_dist_t y_step;
+	if (delta_y > 0)
+		y_step = 1;
+	else
+		y_step = -1;
+	while (rvert.coord.y != p2_y)
 	{
-		v.x = lround(x);
-		draw_pixel(d, options, v);
-		x+= inv_m;
-		v.color = vector4_lerp(p1.color, p2.color, (v.y - p1.y) / dy);
+		raster_pixel(d, options, rvert);
+		scalar_t t = (scalar_t)(rvert.coord.y - p1_y) / delta_y;
+		assert(t >= 0.0 && t <= 1.0);
+		rvert.coord.x = raster_x_from_device(d, p1.coord.x + t * device_delta_x);
+		rvert.color = vector4_lerp(p1.color, p2.color, t);
+		rvert.coord.y+= y_step;
 	}
-	 */
 }
 
 void
 raster_vertical_line(struct drawable *d, struct draw_options options, struct device_vertex p1, struct device_vertex p2)
 {
+	raster_steep_line(d, options, p1, p2);
 }
 
 struct implicit_line2
@@ -163,7 +135,6 @@ raster_rect_from_view(struct drawable *d)
 	{
 		.min = {.x = d->view_x, .y = d->view_y},
 		.max = {.x = d->view_x + d->view_width, .y = d->view_y + d->view_height}
-		//.min = {.x = d->view_x + d->view_width, .y = d->view_y + d->view_height}, .max.x = 0, .max.y = 0
 	};
 }
 

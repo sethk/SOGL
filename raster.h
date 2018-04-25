@@ -51,7 +51,8 @@ struct drawable
 	struct polygon_edge **edge_table;
 };
 
-GLdouble raster_x_from_device(struct drawable *d, GLdouble dx);
+raster_loc_t raster_x_from_device(struct drawable *d, GLdouble dx);
+raster_loc_t raster_y_from_device(struct drawable *d, GLdouble dy);
 scalar_t raster_z_from_device(struct drawable *d, scalar_t dz);
 struct raster_vertex raster_from_device(struct drawable *d, struct device_vertex dv);
 struct vector2 raster_to_device(struct drawable *d, struct raster_coord rc);

@@ -9,10 +9,16 @@
 
 #define CLAMP_COLORS 1
 
-scalar_t
+raster_loc_t
 raster_x_from_device(struct drawable *d, scalar_t dx)
 {
-	return (dx + 1.0) * (d->view_width / 2.0) + d->view_x;
+	return d->view_x + lround(((dx + 1.0) / 2.0) * d->view_width);
+}
+
+raster_loc_t
+raster_y_from_device(struct drawable *d, scalar_t dy)
+{
+	return d->view_y + lround(((dy + 1.0) / 2.0) * d->view_height);
 }
 
 scalar_t
@@ -25,8 +31,8 @@ struct raster_vertex
 raster_from_device(struct drawable *d, struct device_vertex dv)
 {
 	struct raster_vertex rv;
-	rv.coord.x = lround(raster_x_from_device(d, dv.coord.x));
-	rv.coord.y = d->view_y + lround(((dv.coord.y + 1.0) / 2.0) * d->view_height);
+	rv.coord.x = raster_x_from_device(d, dv.coord.x);
+	rv.coord.y = raster_y_from_device(d, dv.coord.y);
 	rv.color = dv.color;
 	rv.depth = raster_z_from_device(d, dv.coord.z);
 	return rv;
@@ -99,4 +105,3 @@ raster_pixel(struct drawable *d, struct draw_options options, struct raster_vert
 			assert(!"Draw operation not implemented");
 	}
 }
-
