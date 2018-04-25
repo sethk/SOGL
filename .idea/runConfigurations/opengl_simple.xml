@@ -1,6 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="opengl_simple" type="CMakeRunConfiguration" factoryName="Application" singleton="true" PASS_PARENT_ENVS_2="true" PROJECT_NAME="SOGL" TARGET_NAME="opengl_simple" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="SOGL" RUN_TARGET_NAME="opengl_simple">
-    <envs />
-    <method />
-  </configuration>
-</component>
