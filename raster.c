@@ -21,7 +21,7 @@ raster_y_from_device(struct drawable *d, scalar_t dy)
 	return d->view_y + lround(((dy + 1.0) / 2.0) * d->view_height);
 }
 
-scalar_t
+raster_depth_t
 raster_z_from_device(struct drawable *d, scalar_t dz)
 {
 	return (dz + 1.0) / 2.0;
@@ -33,8 +33,8 @@ raster_from_device(struct drawable *d, struct device_vertex dv)
 	struct raster_vertex rv;
 	rv.coord.x = raster_x_from_device(d, dv.coord.x);
 	rv.coord.y = raster_y_from_device(d, dv.coord.y);
+	rv.coord.depth = raster_z_from_device(d, dv.coord.z);
 	rv.color = dv.color;
-	rv.depth = raster_z_from_device(d, dv.coord.z);
 	return rv;
 }
 
@@ -56,14 +56,14 @@ raster_pixel(struct drawable *d, struct draw_options options, struct raster_vert
 	assert(vertex.coord.y < d->window_height);
 	if (options.test_depth)
 	{
-		assert(vertex.depth >= 0 && vertex.depth <= 1.0);
+		assert(vertex.coord.depth >= 0 && vertex.coord.depth <= 1.0);
 		switch (options.depth_func)
 		{
 			case GL_NEVER:
 				return;
 
 			case GL_LESS:
-				if (vertex.depth < d->depth_buffer[vertex.coord.y * d->window_width + vertex.coord.x])
+				if (vertex.coord.depth < d->depth_buffer[vertex.coord.y * d->window_width + vertex.coord.x])
 					break;
 				else
 					return;
@@ -74,7 +74,7 @@ raster_pixel(struct drawable *d, struct draw_options options, struct raster_vert
 			default:
 				assert(!"Depth func not implemented");
 		}
-		d->depth_buffer[vertex.coord.y * d->window_width + vertex.coord.x] = vertex.depth;
+		d->depth_buffer[vertex.coord.y * d->window_width + vertex.coord.x] = vertex.coord.depth;
 	}
 	switch (options.draw_op)
 	{

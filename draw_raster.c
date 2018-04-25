@@ -58,7 +58,7 @@ void
 draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, bool depth, GLfloat clear_depth)
 {
 	struct raster_vertex vertex;
-	vertex.depth = clear_depth;
+	vertex.coord.depth = clear_depth;
 	vertex.color = clear_color;
 	for (vertex.coord.y = 0; vertex.coord.y < d->window_height; ++vertex.coord.y)
 		for (vertex.coord.x = 0; vertex.coord.x < d->window_width; ++vertex.coord.x)
@@ -80,30 +80,15 @@ draw_line(struct drawable *d,
 	scalar_t delta_x = p2.coord.x - p1.coord.x;
 	scalar_t delta_y = p2.coord.y - p1.coord.y;
 	if (delta_y == 0)
-	{
-		if (delta_x > 0)
-			raster_horiz_line(d, options, p1, p2);
-		else
-			raster_horiz_line(d, options, p2, p1);
-	}
+		raster_horiz_line(d, options, p1, p2);
 	else if (delta_x == 0)
 		raster_vertical_line(d, options, p1, p2);
 	else
 	{
 		if (fabs(delta_y) >= fabs(delta_x))
-		{
-			if (delta_y > 0)
-				raster_steep_line(d, options, p1, p2);
-			else
-				raster_steep_line(d, options, p2, p1);
-		}
+			raster_steep_line(d, options, p1, p2);
 		else
-		{
-			if (delta_x > 0)
-				raster_gradual_line(d, options, p1, p2);
-			else
-				raster_gradual_line(d, options, p2, p1);
-		}
+			raster_gradual_line(d, options, p1, p2);
 	}
 }
 
@@ -126,7 +111,7 @@ draw_create_stepper(struct raster_vertex bottom, struct raster_vertex top)
 	stepper.delta_x = top.coord.x - bottom.coord.x;
 	stepper.delta_y = top.coord.y - bottom.coord.y;
 	stepper.x_num = 0;
-	stepper.depth_incr = (top.depth - bottom.depth) / stepper.delta_y;
+	stepper.depth_incr = (top.coord.depth - bottom.coord.depth) / stepper.delta_y;
 	stepper.color_incr = vector4_divide_scalar(vector4_sub(top.color, bottom.color), stepper.delta_y);
 	return stepper;
 }

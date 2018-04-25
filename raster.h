@@ -18,25 +18,27 @@
 #endif // RASTER_UNIT
 typedef int raster_dist_t;
 
+typedef float raster_depth_t;
+
 struct raster_coord
 {
 	raster_loc_t x, y;
+	raster_depth_t depth;
 };
 
 struct raster_vertex
 {
 	struct raster_coord coord;
-	scalar_t depth;
 	struct vector4 color;
 };
 
 struct polygon_edge
 {
-	struct raster_vertex upper_coord;
-	struct raster_vertex lower_coord;
-	int delta_x;
-	u_int delta_y;
-	u_int x_num;
+	struct raster_vertex upper_vertex;
+	struct raster_vertex lower_vertex;
+	raster_dist_t delta_x;
+	raster_loc_t delta_y;
+	raster_loc_t x_num;
 	float depth_incr;
 	struct polygon_edge *next;
 };
@@ -53,7 +55,7 @@ struct drawable
 
 raster_loc_t raster_x_from_device(struct drawable *d, GLdouble dx);
 raster_loc_t raster_y_from_device(struct drawable *d, GLdouble dy);
-scalar_t raster_z_from_device(struct drawable *d, scalar_t dz);
+raster_depth_t raster_z_from_device(struct drawable *d, scalar_t dz);
 struct raster_vertex raster_from_device(struct drawable *d, struct device_vertex dv);
 struct vector2 raster_to_device(struct drawable *d, struct raster_coord rc);
 void raster_pixel(struct drawable *d, struct draw_options options, struct raster_vertex vertex);
