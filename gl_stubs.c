@@ -97,12 +97,6 @@ gl_color3bv(GLIContext ctx, const GLbyte *v)
 }
 
 static void
-gl_color3d(GLIContext ctx, GLdouble red, GLdouble green, GLdouble blue)
-{
-	fprintf(stderr, "TODO: color3d()\n");
-}
-
-static void
 gl_color3dv(GLIContext ctx, const GLdouble *v)
 {
 	fprintf(stderr, "TODO: color3dv()\n");
@@ -533,13 +527,6 @@ static void
 gl_get_doublev(GLIContext ctx, GLenum pname, GLdouble *params)
 {
 	fprintf(stderr, "TODO: get_doublev()\n");
-}
-
-static GLenum
-gl_get_error(GLIContext ctx)
-{
-	fprintf(stderr, "TODO: get_error()\n");
-	return GL_INVALID_ENUM;
 }
 
 static void

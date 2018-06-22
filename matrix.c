@@ -181,6 +181,26 @@ matrix_mult_vector(const scalar_t *mv, u_int num_cols, u_int num_rows, const sca
 	}
 }
 
+struct matrix2x2
+matrix2x2_build(struct vector2 u, struct vector2 v)
+{
+	return (struct matrix2x2){.cols[0][0] = u.x, .cols[0][1] = u.y, .cols[1][0] = v.x, .cols[1][1] = v.y};
+}
+
+scalar_t
+matrix2x2_det(const struct matrix2x2 m)
+{
+	return matrix_det(m.m, 2);
+}
+
+struct vector2
+matrix2x2_mult_vector2(const struct matrix2x2 m, const struct vector2 v)
+{
+	struct vector2 result;
+	matrix_mult_vector(m.m, 2, 2, v.v, result.v);
+	return result;
+}
+
 scalar_t
 matrix3x3_minor(const struct matrix3x3 m, u_int without_col, u_int without_row)
 {

@@ -31,7 +31,7 @@ window_check_error(struct cgl_window *cw, const char *label)
 
 void
 window_update(struct window *w,
-const struct raster_color *frame,
+              const struct raster_color *frame,
               u_int x,
               u_int y,
               u_int width,

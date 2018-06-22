@@ -174,17 +174,18 @@ raster_horiz_span(struct drawable *d,
                   struct raster_vertex left_vertex,
                   struct raster_vertex right_vertex)
 {
+	raster_pixel(d, options, left_vertex);
 	scalar_t span = right_vertex.coord.x - left_vertex.coord.x;
-	if (span > 0)
+	if (span > 1)
 	{
 		raster_depth_t depth_step = (right_vertex.coord.depth - left_vertex.coord.depth) / span;
 		struct vector4 color_step = vector4_divide_scalar(vector4_sub(right_vertex.color, left_vertex.color), span);
 		do
 		{
-			raster_pixel(d, options, left_vertex);
 			left_vertex.coord.x += 1;
 			left_vertex.coord.depth += depth_step;
 			left_vertex.color = vector4_add(left_vertex.color, color_step);
+			raster_pixel(d, options, left_vertex);
 		}
 		while (left_vertex.coord.x < right_vertex.coord.x);
 	}

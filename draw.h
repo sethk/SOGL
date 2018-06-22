@@ -7,7 +7,7 @@
 
 #include <sys/types.h>
 #include <stdbool.h>
-#include <OpenGL/OpenGL.h>
+#include <OpenGL/OpenGL.h> // TODO: Replace with enums
 #include "vector.h"
 
 struct window;
@@ -17,7 +17,7 @@ struct draw_options
 	GLenum draw_op;
 	bool test_depth;
 	GLenum depth_func;
-	GLenum polygon_mode;
+	GLenum polygon_modes[2];
 };
 
 struct device_vertex

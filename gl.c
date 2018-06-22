@@ -70,7 +70,7 @@ struct draw_options draw_options =
 	.draw_op = GL_COPY,
 	.test_depth = false,
 	.depth_func = GL_LESS,
-	.polygon_mode = GL_FILL
+	.polygon_modes = {GL_FILL, GL_FILL}
 };
 static const struct vector4 origin = {.x = 0, .y = 0, .z = 0, .w = 1};
 static GLuint primitive_index;
@@ -536,6 +536,13 @@ gl_color3fv(GLIContext rend, const GLfloat *c)
 
 static void
 gl_color3f(GLIContext rend, GLfloat red, GLfloat green, GLfloat blue)
+{
+	GLdouble c[4] = {red, green, blue, 1.0};
+	gl_color4dv(rend, c);
+}
+
+static void
+gl_color3d(GLIContext rend, GLdouble red, GLdouble green, GLdouble blue)
 {
 	GLdouble c[4] = {red, green, blue, 1.0};
 	gl_color4dv(rend, c);
@@ -1049,7 +1056,20 @@ gl_depth_func(GLIContext ctx, GLenum func)
 static void
 gl_polygon_mode(GLIContext ctx, GLenum face, GLenum mode)
 {
-	draw_options.polygon_mode = mode;
+	switch (face)
+	{
+		case GL_FRONT:
+			draw_options.polygon_modes[0] = mode;
+			break;
+		case GL_BACK:
+			draw_options.polygon_modes[1] = mode;
+			break;
+		case GL_FRONT_AND_BACK:
+			draw_options.polygon_modes[0] = draw_options.polygon_modes[1] = mode;
+			break;
+		default:
+			assert(!"Invalid polygon face");
+	}
 }
 
 static void
@@ -1354,6 +1374,12 @@ gl_shade_model(GLIContext rend, GLenum mode)
 	if (mode != GL_SMOOTH)
 		fprintf(stderr, "%s() TODO\n", __FUNCTION__);
 	//opengl_disp.shade_model(opengl_rend, mode);
+}
+
+static GLenum
+gl_get_error(GLIContext ctx)
+{
+	return GL_NO_ERROR;
 }
 
 static void

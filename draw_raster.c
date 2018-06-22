@@ -10,9 +10,9 @@
 #include "draw.h"
 #include "window.h"
 #include "raster.h"
+#include "matrix.h"
 
 #define FLIPPED_Y 0
-#define TRIANGULATE_POLYGONS 1
 
 struct drawable *
 draw_create(struct window *w)
@@ -71,12 +71,37 @@ draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, boo
 		}
 }
 
+static bool
+draw_clip_point(const struct vector3 *coord)
+{
+	return (coord->x >= -1.0 && coord->x <= 1.0 &&
+			coord->y >= -1.0 && coord->y <= 1.0 &&
+			coord->z >= -1.0 && coord->z <= 1.0);
+}
+
+static bool
+draw_clip_line(struct device_vertex *p1, struct device_vertex *p2)
+{
+	if (p1->coord.x >= -1.0 && p1->coord.x < 1.0 &&
+			p1->coord.y >= -1.0 && p1->coord.y < 1.0 &&
+			p1->coord.z >= -1.0 && p1->coord.z < 1.0 &&
+            p2->coord.x >= -1.0 && p2->coord.x < 1.0 &&
+            p2->coord.y >= -1.0 && p2->coord.y < 1.0 &&
+			p2->coord.z >= -1.0 && p2->coord.z < 1.0)
+		return true;
+
+	return false;
+}
+
 static void
 draw_line(struct drawable *d,
           struct draw_options options,
           struct device_vertex p1,
           struct device_vertex p2)
 {
+	if (!draw_clip_line(&p1, &p2))
+		return;
+
 	scalar_t delta_x = p2.coord.x - p1.coord.x;
 	scalar_t delta_y = p2.coord.y - p1.coord.y;
 	if (delta_y == 0)
@@ -92,6 +117,114 @@ draw_line(struct drawable *d,
 	}
 }
 
+static void
+draw_triangle(struct drawable *d,
+              struct draw_options options,
+              const struct device_vertex vertices[3],
+              bool front)
+{
+	if (!draw_clip_point(&(vertices[0].coord)) ||
+			!draw_clip_point(&(vertices[1].coord)) ||
+			!draw_clip_point(&(vertices[2].coord)))
+		return;
+
+	/*
+	u_int top_index;
+	if (vertices[0].coord.y > vertices[1].coord.y)
+	{
+		if (vertices[0].coord.y > vertices[2].coord.y)
+			top_index = 0;
+		else
+			top_index = 2;
+	}
+	else
+	{
+		if (vertices[1].coord.y > vertices[2].coord.y)
+			top_index = 1;
+		else
+			top_index = 2;
+	}
+		top_index = 0;
+	else if (vertices[0].coord.y < vertices[1].coord.y)
+	{
+		if (vertices[1].coord.y > vertices[2].coord.y)
+			top_index = 1;
+		else if (vertices[1].coord.y < vertices[2].coord.y)
+			top_index = 2;
+		else // Horizontal top
+		{
+			if (vertices[1].coord.x < vertices[2].coord.x)
+				top_index = 1;
+			else
+				top_index = 2;
+		}
+	}
+	else // Horizontal top
+	{
+		if (vertices[0].coord.x < vertices[1].coord.x)
+			top_index = 0;
+		else
+			top_index = 1;
+	}
+	u_int left_index, right_index;
+	if (front)
+	{
+		left_index = (top_index + 2) % 3;
+		right_index = (top_index + 1) % 3;
+	}
+	else
+	{
+		left_index = (top_index + 1) % 3;
+		right_index = (top_index + 2) % 3;
+	}
+	assert(top_index != left_index && left_index != right_index && right_index != top_index);
+	assert(vertices[top_index].coord.y >= vertices[left_index].coord.y && vertices[top_index].coord.y >= vertices[right_index].coord.y);
+	assert(vertices[left_index].coord.x < vertices[right_index].coord.x);
+	 */
+
+	raster_triangle(d, options, vertices);
+}
+
+static void
+draw_polygon(struct drawable *d, struct draw_options options, const struct device_vertex vertices[], u_int num_verts)
+{
+	struct vector2 u = vector2_sub(vertices[2].coord.xy, vertices[0].coord.xy);
+	struct vector2 v = vector2_sub(vertices[1].coord.xy, vertices[0].coord.xy);
+	struct matrix2x2 tri_space = matrix2x2_build(u, v);
+	scalar_t det = matrix2x2_det(tri_space);
+	bool front = (det >= 0);
+
+	// TODO: Cull backfaces
+
+	GLenum polygon_mode = options.polygon_modes[(front) ? 0 : 1];
+	switch (polygon_mode)
+	{
+		case GL_POINT:
+			for (GLuint i = 0; i < num_verts; ++i)
+				raster_pixel(d, options, raster_from_device(d, vertices[i]));
+			break;
+
+		case GL_LINE:
+			for (GLuint i = 0; i < num_verts; ++i)
+				draw_line(d, options, vertices[i], vertices[(i + 1) % num_verts]);
+			break;
+
+		case GL_FILL:
+		{
+			struct device_vertex tri_verts[3];
+			tri_verts[0] = vertices[0];
+			for (GLuint i = 1; i < num_verts - 1; i+= 1)
+			{
+				tri_verts[1] = vertices[i];
+				tri_verts[2] = vertices[i + 1];
+				draw_triangle(d, options, tri_verts, front);
+			}
+			break;
+		}
+	}
+}
+
+/*
 struct vertical_line_stepper
 {
 	struct raster_vertex vertex;
@@ -116,7 +249,6 @@ draw_create_stepper(struct raster_vertex bottom, struct raster_vertex top)
 	return stepper;
 }
 
-/*
 static void
 draw_stepper_incr(struct vertical_line_stepper *stepper)
 {
@@ -253,38 +385,8 @@ draw_primitive(struct drawable *d,
 			draw_line(d, options, vertices[0], vertices[1]);
 			break;
 		default:
-			switch (options.polygon_mode)
-			{
-				case GL_POINT:
-					for (GLuint i = 0; i < num_verts; ++i)
-						raster_pixel(d, options, raster_from_device(d, vertices[i]));
-					break;
-
-				case GL_LINE:
-					for (GLuint i = 0; i < num_verts; ++i)
-						draw_line(d, options, vertices[i], vertices[(i + 1) % num_verts]);
-					break;
-
-				case GL_FILL:
-					if (num_verts == 3)
-						raster_triangle(d, options, vertices);
-					else
-					{
-#if TRIANGULATE_POLYGONS
-						struct device_vertex tri_verts[3];
-						tri_verts[0] = vertices[0];
-						for (GLuint i = 1; i < num_verts - 1; i+= 1)
-						{
-							tri_verts[1] = vertices[i];
-							tri_verts[2] = vertices[i + 1];
-							raster_triangle(d, options, tri_verts);
-						}
-#else
-						raster_polygon(d, options, vertices, num_verts);
-#endif
-					}
-					break;
-			}
+			draw_polygon(d, options, vertices, num_verts);
+			break;
 	}
 }
 

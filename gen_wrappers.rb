@@ -3,7 +3,7 @@
 JUST_WRAP = %w{glutDisplayFunc glutKeyboardFunc glutInitDisplayMode glutSolidSphere glutAddMenuEntry glutAddSubMenu
     glutCreateMenu glutChangeToMenuEntry glutAttachMenu glutSolidIcosahedron glutSolidTetrahedron glutSolidTorus
     glutVisibilityFunc glutMotionFunc glutMouseFunc glutSolidDodecahedron glutSolidTeapot glutStrokeCharacter
-    glutStrokeRoman glutSolidCube glutWireCube glutSetWindowTitle glutSpecialFunc}
+    glutStrokeRoman glutSolidCube glutWireCube glutSetWindowTitle glutSpecialFunc glutReportErrors}
 EXTRA_SYMS = %w{glutStrokeRoman}
 
 fail "usage: #{$0} <prefix> <path>" unless ARGV.length == 2

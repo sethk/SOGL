@@ -10,6 +10,7 @@
 #include "window.h"
 #include "draw.h"
 
+// TODO: Rename raster_size
 #define RASTER_UINT 0
 #if RASTER_UINT
 	typedef u_int raster_loc_t;
@@ -76,9 +77,5 @@ void raster_vertical_line(struct drawable *d,
                           struct device_vertex p1,
                           struct device_vertex p2);
 void raster_triangle(struct drawable *d, struct draw_options options, const struct device_vertex vertices[3]);
-void raster_polygon(struct drawable *d,
-                    struct draw_options options,
-                    const struct device_vertex vertices[],
-                    u_int num_verts);
 
 #endif //SOGL_RASTER_H

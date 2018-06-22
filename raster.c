@@ -12,19 +12,21 @@
 raster_loc_t
 raster_x_from_device(struct drawable *d, scalar_t dx)
 {
-	return d->view_x + lround(((dx + 1.0) / 2.0) * d->view_width);
+	scalar_t rx = ((dx + 1.0) / 2.0) * d->view_width;
+	return d->view_x + (raster_loc_t)floor(rx + 0.5);
 }
 
 raster_loc_t
 raster_y_from_device(struct drawable *d, scalar_t dy)
 {
-	return d->view_y + lround(((dy + 1.0) / 2.0) * d->view_height);
+	scalar_t ry = ((dy + 1.0) / 2.0) * d->view_height;
+	return d->view_y + (raster_loc_t)floor(ry + 0.5);
 }
 
 raster_depth_t
 raster_z_from_device(struct drawable *d, scalar_t dz)
 {
-	return (dz + 1.0) / 2.0;
+	return (raster_depth_t)((dz + 1.0) / 2.0);
 }
 
 struct raster_vertex
@@ -42,8 +44,8 @@ struct vector2
 raster_to_device(struct drawable *d, struct raster_coord rc)
 {
 	struct vector2 dv;
-	dv.x = (((GLdouble)rc.x + 0.5) - d->view_x) / (d->view_width / 2.0) - 1.0;
-	dv.y = (((GLdouble)rc.y + 0.5) - d->view_y) / (d->view_height / 2.0) - 1.0;
+	dv.x = (((GLdouble)rc.x /*+ 0.5*/) - d->view_x) / (d->view_width / 2.0) - 1.0;
+	dv.y = (((GLdouble)rc.y /*+ 0.5*/) - d->view_y) / (d->view_height / 2.0) - 1.0;
 	return dv;
 }
 

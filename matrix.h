@@ -8,6 +8,15 @@
 #include <sys/types.h>
 #include "vector.h"
 
+struct matrix2x2
+{
+	union
+	{
+		scalar_t cols[2][2];
+		scalar_t m[4];
+	};
+};
+
 struct matrix3x3
 {
 	union
@@ -27,6 +36,9 @@ struct matrix4x4
 };
 #define IDENTITY_MATRIX4X4 {.cols = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}}
 
+struct matrix2x2 matrix2x2_build(struct vector2 u, struct vector2 v);
+scalar_t matrix2x2_det(const struct matrix2x2 m);
+struct vector2 matrix2x2_mult_vector2(const struct matrix2x2 m, const struct vector2 v);
 scalar_t matrix3x3_minor(const struct matrix3x3 m, u_int col, u_int row);
 scalar_t matrix3x3_det(const struct matrix3x3 m);
 struct matrix3x3 matrix3x3_invert(const struct matrix3x3 m);
