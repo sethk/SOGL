@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <math.h>
 #include "raster.h"
+#include "matrix.h"
+#include "vector.h"
 
 #define CLAMP_COLORS 1
 
@@ -32,10 +34,11 @@ raster_z_from_device(struct drawable *d, scalar_t dz)
 struct raster_vertex
 raster_from_device(struct drawable *d, struct device_vertex dv)
 {
+	struct vector3 dcoord = vector4_project(matrix4x4_mult_vector4(d->view_trans, dv.coord));
 	struct raster_vertex rv;
-	rv.coord.x = raster_x_from_device(d, dv.coord.x);
-	rv.coord.y = raster_y_from_device(d, dv.coord.y);
-	rv.coord.depth = raster_z_from_device(d, dv.coord.z);
+	rv.coord.x = lround(dcoord.x); //raster_x_from_device(d, dcoord.x);
+	rv.coord.y = lround(dcoord.y); //raster_y_from_device(d, dcoord.y);
+	rv.coord.depth = dcoord.z; //raster_z_from_device(d, dcoord.z);
 	rv.color = dv.color;
 	return rv;
 }
@@ -105,5 +108,20 @@ raster_pixel(struct drawable *d, struct draw_options options, struct raster_vert
 
 		default:
 			assert(!"Draw operation not implemented");
+	}
+}
+
+void
+raster_scan_point(struct drawable *d, const struct window_vertex *vertex)
+{
+	if (vertex->coord.x > 0 && vertex->coord.y < d->view_height)
+	{
+		d->spans[d->num_spans].y = (raster_loc_t)floor(vertex->coord.y);
+		d->spans[d->num_spans].left_x = (raster_loc_t)ceil(vertex->coord.x - 1.0);
+		d->spans[d->num_spans].left_depth = vertex->coord.z;
+		d->spans[d->num_spans].x_delta = 1;
+		d->spans[d->num_spans].left_color = vertex->color;
+		d->spans[d->num_spans].color_delta = (struct vector4){.v = {0, 0, 0, 0}};
+		++d->num_spans;
 	}
 }

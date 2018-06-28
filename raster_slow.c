@@ -132,7 +132,110 @@ raster_rect_from_view(struct drawable *d)
 }
 
 void
-raster_triangle(struct drawable *d, struct draw_options options, const struct device_vertex vertices[3])
+raster_scan_trapezoid(struct drawable *d,
+                      const struct device_vertex *left_bottom, const struct device_vertex *left_top,
+                      const struct device_vertex *right_bottom, const struct device_vertex *right_top)
+{
+	assert(left_bottom->coord.x < right_bottom->coord.x);
+	assert(left_bottom->coord.y == right_bottom->coord.y);
+	assert(left_top->coord.y == right_top->coord.y);
+	scalar_t y_delta = left_top->coord.y - left_bottom->coord.y;
+	scalar_t left_x_delta = left_top->coord.x - left_bottom->coord.x;
+	scalar_t left_depth_delta = left_top->coord.z - left_bottom->coord.z;
+	scalar_t right_x_delta = right_top->coord.x - right_bottom->coord.x;
+	scalar_t right_depth_delta = right_top->coord.z - right_bottom->coord.z;
+	raster_loc_t min_y = floor(left_bottom->coord.y);
+	raster_loc_t max_y = ceil(left_top->coord.y);
+	for (raster_loc_t y = min_y; y < max_y; ++y)
+	{
+		scalar_t t = (y - left_bottom->coord.y) / y_delta;
+		scalar_t left_x = left_bottom->coord.x + left_x_delta * t;
+		raster_loc_t left_raster_x = floor(left_x);
+		scalar_t right_x = right_bottom->coord.x + right_x_delta * t;
+		raster_loc_t right_raster_x = floor(right_x);
+		raster_dist_t x_delta = right_raster_x - left_raster_x;
+		if (x_delta > 0)
+		{
+			scalar_t left_depth = left_bottom->coord.z + left_depth_delta * t;
+			scalar_t right_depth = right_bottom->coord.z + right_depth_delta * t;
+			d->spans[d->num_spans].y = y;
+			d->spans[d->num_spans].left_x = left_x;
+			d->spans[d->num_spans].x_delta = x_delta;
+			d->spans[d->num_spans].left_depth = left_depth;
+			d->spans[d->num_spans].depth_delta = right_depth - left_depth;
+		}
+	}
+	/*
+	struct vector3 win_coords[3];
+	scalar_t inv_slopes[4];
+	for (u_int i = 0; i < 3; ++i)
+		win_coords[i] = vector4_project(matrix4x4_mult_vector4(d->view_trans, vertices[i].coord));
+	raster_loc_t min_y = floor(win_coords[0].y);
+	raster_loc_t mid_y = floor(win_coords[1].y);
+	raster_loc_t max_y = floor(win_coords[2].y);
+
+	for (raster_loc_t y = min_y; y < max_y; ++y)
+	{
+		if (y < mid_y)
+		{
+			scalar_t x0 = (y - win_coords[0].y) * inv_slopes[0];
+			scalar_t x1 = (y - win_coords[1].y) * inv_slopes[1];
+		}
+	}
+	 */
+	/*
+	raster_loc_t max_y = (raster_loc_t)floor(win_coords[0].y);
+	raster_loc_t mid_y = (raster_loc_t)floor(win_coords[1].y);
+	raster_loc_t mid_x = (raster_loc_t)floor(win_coords[1].x);
+	raster_loc_t opposite_x = (raster_loc_t)floor(win_coords[2].x);
+	if (mid_x < opposite_x)
+		raster_scan_trapezoid(d, mid_x, mid_y, opposite_x, max_y
+	 */
+	/*
+	scalar_t top_y = -1;
+	u_int top_index;
+	for (u_int i = 0; i < 3; ++i)
+	{
+		if (vertices[i].coord.y > top_y)
+		{
+			top_index = i;
+			top_y = vertices[i].coord.y;
+		}
+	}
+
+	scalar_t right_x = -1;
+	u_int right_index;
+	for (u_int i = 0; i < 3; ++i)
+	{
+		if (i != top_index)
+		{
+			if (vertices[i].coord.x > right_x)
+			{
+				right_index = i;
+				right_x = vertices[i].coord.x;
+			}
+		}
+	}
+
+	u_int left_index;
+	for (u_int i = 0; i < 3; ++i)
+	{
+		if (i != top_index && i != right_index)
+		{
+			left_index = i;
+			break;
+		}
+	}
+
+	struct vector3 top_coord, right_coord, left_coord;
+	top_coord = vector4_project(matrix4x4_mult_vector4(d->view_trans, vertices[top_index].coord));
+	right_coord = vector4_project(matrix4x4_mult_vector4(d->view_trans, vertices[right_index].coord));
+	left_coord = vector4_project(matrix4x4_mult_vector4(d->view_trans, vertices[left_index].coord));
+	 */
+}
+
+void
+raster_triangle(struct drawable *d, struct draw_options options, const struct window_vertex vertices[3])
 {
 	struct vector2 edge1 = vector2_sub(vertices[1].coord.xy, vertices[0].coord.xy);
 	struct vector2 edge2 = vector2_sub(vertices[2].coord.xy, vertices[0].coord.xy);
@@ -152,13 +255,13 @@ raster_triangle(struct drawable *d, struct draw_options options, const struct de
 	}
 
 	struct raster_rect view_rect = raster_rect_from_view(d);
-	struct raster_rect clip = {.min = view_rect.max, .max = view_rect.max};
-	struct raster_vertex rverts[3];
-	for (u_int i = 0; i < 3; ++i)
-	{
-		rverts[i] = raster_from_device(d, vertices[i]);
-		raster_cliprect_update(&clip, rverts[i].coord, view_rect);
-	}
+	struct raster_rect clip = view_rect; //{.min = view_rect.max, .max = view_rect.max};
+	//struct raster_vertex rverts[3];
+	//for (u_int i = 0; i < 3; ++i)
+	//{
+		//rverts[i] = raster_from_device(d, vertices[i]);
+		//raster_cliprect_update(&clip, vertices[i].coord, view_rect);
+	//}
 
 	struct raster_vertex rvert;
 	for (rvert.coord.x = clip.min.x; rvert.coord.x < clip.max.x; ++rvert.coord.x)
@@ -166,28 +269,29 @@ raster_triangle(struct drawable *d, struct draw_options options, const struct de
 		{
 			bool top_left = false;
 
-			struct vector2 dcoord = raster_to_device(d, rvert.coord);
+			//struct vector2 dcoord = raster_to_device(d, rvert.coord);
+			struct vector2 coord = {.x = rvert.coord.x + 0.5, .y = rvert.coord.y + 0.5};
 			u_int edge_index;
 			for (edge_index = 0; edge_index < 3; ++edge_index)
 			{
-				scalar_t dist = raster_edge_dist(dcoord, lines[edge_index]);
+				scalar_t dist = raster_edge_dist(coord, lines[edge_index]);
 				if (dist < 0)
 					break;
 				else if (dist == 0.0)
 				{
-					break;
+					//break;
 					top_left = true;
 				}
 			}
 
 			if (edge_index == 3)
 			{
-				struct vector2 vert_vec = vector2_sub(dcoord, vertices[0].coord.xy);
+				struct vector2 vert_vec = vector2_sub(coord, vertices[0].coord.xy);
 				scalar_t u = (vert_vec.x * edge2.y - vert_vec.y * edge2.x) / double_area;
 				scalar_t v = (edge1.x * vert_vec.y - edge1.y * vert_vec.x) / double_area;
 				scalar_t t = 1.0 - (u + v);
 				rvert.coord.depth =
-						rverts[1].coord.depth * u + rverts[2].coord.depth * v + rverts[0].coord.depth * t;
+						vertices[1].coord.z * u + vertices[2].coord.z * v + vertices[0].coord.z * t;
 				if (rvert.coord.depth >= 0 && rvert.coord.depth <= 1.0)
 				{
 					if (top_left)
@@ -206,3 +310,21 @@ raster_triangle(struct drawable *d, struct draw_options options, const struct de
 		}
 }
 
+void
+raster_fill_spans(struct drawable *d, struct draw_options options)
+{
+	for (u_int i = 0; i < d->num_spans; ++i)
+	{
+		struct raster_vertex rvert;
+		rvert.coord.y = d->spans[i].y;
+		rvert.coord.x = d->spans[i].left_x;
+		for (raster_dist_t off = 0; off < d->spans[i].x_delta; ++off)
+		{
+			scalar_t u = off / d->spans[i].x_delta;
+			rvert.coord.depth = d->spans[i].left_depth + u * d->spans[i].depth_delta;
+			rvert.color = vector4_add(d->spans[i].left_color, vector4_mult_scalar(d->spans[i].color_delta, u));
+			raster_pixel(d, options, rvert);
+			rvert.coord.x+= 1;
+		}
+	}
+}

@@ -439,7 +439,7 @@ render_primitive(const struct modelview modelview,
 		//struct vector4 colors[MAX_PRIMITIVE_VERTICES];
 		for (GLuint i = 0; i < num_vertices; ++i)
 		{
-			device_vertices[i].coord = vector4_project(shaded[i].view_pos);
+			device_vertices[i].coord = shaded[i].view_pos; //vector4_project(shaded[i].view_pos);
 			device_vertices[i].color = render_shade_pixel(vertices[indices[i]].mat, shaded[i], lighting);
 		}
 
@@ -1323,18 +1323,9 @@ gl_finish(GLIContext rend)
 }
 
 static void
-gl_ortho(GLIContext rend, GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble zNear, GLdouble zFar)
+gl_ortho(GLIContext rend, GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near, GLdouble far)
 {
-	GLdouble width = right - left, height = top - bottom, depth = zFar - zNear;
-	struct matrix4x4 m;
-	bzero(&m, sizeof(m));
-	m.cols[0][0] = 2.0 / width;
-	m.cols[1][1] = 2.0 / height;
-	m.cols[2][2] = -2.0 / depth;
-	m.cols[3][0] = -(right + left) / width;
-	m.cols[3][1] = -(top + bottom) / height;
-	m.cols[3][2] = -(zFar + zNear) / depth;
-	m.cols[3][3] = 1.0;
+	struct matrix4x4 m = matrix4x4_make_ortho(left, right, bottom, top, -near, -far);
 	gl_mult_matrixd(rend, m.m);
 }
 

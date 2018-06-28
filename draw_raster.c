@@ -32,6 +32,7 @@ draw_reshape(struct drawable *d, u_int width, u_int height)
 		free(d->color_buffer);
 		free(d->depth_buffer);
 		free(d->edge_table);
+		free(d->spans);
 	}
 	d->window_width = width;
 	d->window_height = height;
@@ -39,6 +40,7 @@ draw_reshape(struct drawable *d, u_int width, u_int height)
 	d->color_buffer = malloc(sizeof(*(d->color_buffer)) * d->window_width * d->window_height);
 	d->depth_buffer = malloc(sizeof(*(d->depth_buffer)) * d->window_width * d->window_height);
 	d->edge_table = calloc(d->window_height, sizeof(*(d->edge_table)));
+	d->spans = calloc(d->window_height, sizeof(*(d->spans)));
 }
 
 void
@@ -52,6 +54,11 @@ draw_set_view(struct drawable *d, u_int x, u_int y, u_int width, u_int height)
 #endif // FLIPPED_Y
 	d->view_width = width;
 	d->view_height = height;
+	scalar_t half_width = width / 2.0, half_height = height / 2.0;
+	d->view_trans = (struct matrix4x4)
+	{
+		.cols = {{half_width, 0, 0}, {0, half_height, 0}, {0, 0, 0.5, 0}, {x + half_width, y + half_height, 0.5, 1}}
+	};
 }
 
 void
@@ -72,25 +79,38 @@ draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, boo
 }
 
 static bool
-draw_clip_point(const struct vector3 *coord)
+draw_clip_point(const struct vector4 *coord)
 {
-	return (coord->x >= -1.0 && coord->x <= 1.0 &&
-			coord->y >= -1.0 && coord->y <= 1.0 &&
-			coord->z >= -1.0 && coord->z <= 1.0);
+	return (coord->x >= -coord->w && coord->x <= coord->w &&
+			coord->y >= -coord->w && coord->y <= coord->w &&
+			coord->z >= -coord->w && coord->z <= coord->w);
+}
+
+static struct window_vertex
+draw_map_vertex(struct drawable *d, const struct device_vertex *vertex)
+{
+	struct window_vertex win_vert;
+	win_vert.coord = vector4_project(matrix4x4_mult_vector4(d->view_trans, vertex->coord));
+	win_vert.color = vertex->color;
+	return win_vert;
+}
+
+static void
+draw_point(struct drawable *d, struct draw_options options, struct device_vertex vertex)
+{
+	if (draw_clip_point(&(vertex.coord)))
+	{
+		d->num_spans = 0;
+		struct window_vertex win_vert = draw_map_vertex(d, &vertex);
+		raster_scan_point(d, &win_vert);
+		raster_fill_spans(d, options);
+	}
 }
 
 static bool
 draw_clip_line(struct device_vertex *p1, struct device_vertex *p2)
 {
-	if (p1->coord.x >= -1.0 && p1->coord.x < 1.0 &&
-			p1->coord.y >= -1.0 && p1->coord.y < 1.0 &&
-			p1->coord.z >= -1.0 && p1->coord.z < 1.0 &&
-            p2->coord.x >= -1.0 && p2->coord.x < 1.0 &&
-            p2->coord.y >= -1.0 && p2->coord.y < 1.0 &&
-			p2->coord.z >= -1.0 && p2->coord.z < 1.0)
-		return true;
-
-	return false;
+	return (draw_clip_point(&(p1->coord)) && draw_clip_point(&(p2->coord)));
 }
 
 static void
@@ -117,10 +137,23 @@ draw_line(struct drawable *d,
 	}
 }
 
+static int
+draw_compare_vertices(const struct device_vertex *v1, const struct device_vertex *v2)
+{
+	if (v1->coord.y < v2->coord.y)
+		return 1;
+	else if (v1->coord.y > v2->coord.y)
+		return -1;
+	else if (v1->coord.x < v2->coord.x)
+		return 1;
+	else
+		return -1;
+}
+
 static void
 draw_triangle(struct drawable *d,
               struct draw_options options,
-              const struct device_vertex vertices[3],
+              struct device_vertex vertices[3],
               bool front)
 {
 	if (!draw_clip_point(&(vertices[0].coord)) ||
@@ -128,6 +161,11 @@ draw_triangle(struct drawable *d,
 			!draw_clip_point(&(vertices[2].coord)))
 		return;
 
+	struct window_vertex win_verts[3];
+	for (u_int i = 0; i < 3; ++i)
+		win_verts[i] = draw_map_vertex(d, &vertices[i]);
+	raster_triangle(d, options, win_verts);
+	//qsort(vertices, 3, sizeof(vertices[0]), (int (*)(const void *, const void *))&draw_compare_vertices);
 	/*
 	u_int top_index;
 	if (vertices[0].coord.y > vertices[1].coord.y)
@@ -182,7 +220,11 @@ draw_triangle(struct drawable *d,
 	assert(vertices[left_index].coord.x < vertices[right_index].coord.x);
 	 */
 
-	raster_triangle(d, options, vertices);
+	/*
+	d->num_spans = 0;
+	raster_scan_trapezoid(d, &(vertices[0]), &(vertices[1]), &(vertices[0]), &(vertices[2]));
+	raster_fill_spans(d, options);
+	 */
 }
 
 static void
@@ -379,7 +421,7 @@ draw_primitive(struct drawable *d,
 	switch (num_verts)
 	{
 		case 1:
-			raster_pixel(d, options, raster_from_device(d, vertices[0]));
+			draw_point(d, options, vertices[0]);
 			break;
 		case 2:
 			draw_line(d, options, vertices[0], vertices[1]);

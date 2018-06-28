@@ -8,6 +8,10 @@
 #include <sys/types.h>
 #include "vector.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 struct matrix2x2
 {
 	union
@@ -49,10 +53,17 @@ struct matrix4x4 matrix4x4_mult_matrix4x4(const struct matrix4x4 m, const struct
 struct vector4 matrix4x4_mult_vector4(const struct matrix4x4 m, const struct vector4 v);
 struct matrix4x4 matrix4x4_make_rotation(scalar_t angle, scalar_t x, scalar_t y, scalar_t z);
 struct matrix4x4 matrix4x4_make_scaling(scalar_t x, scalar_t y, scalar_t z);
+struct matrix4x4 matrix4x4_make_ortho(scalar_t left, scalar_t right,
+                                      scalar_t bottom, scalar_t top,
+                                      scalar_t near_z, scalar_t far_z);
 scalar_t matrix4x4_det(const struct matrix4x4 m);
 struct matrix4x4 matrix4x4_invert_trans(const struct matrix4x4 m);
 struct matrix4x4 matrix4x4_invert(const struct matrix4x4 m);
 void matrix4x4_check_inverse(const struct matrix4x4 m, const struct matrix4x4 im);
 void matrix4x4_print(const struct matrix4x4 m, const char *label);
+
+#ifdef __cplusplus
+}
+#endif // __cplusplus
 
 #endif //SOGL_MATRIX_H

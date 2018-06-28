@@ -5,6 +5,10 @@
 #ifndef SOGL_DRAW_H
 #define SOGL_DRAW_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 #include <sys/types.h>
 #include <stdbool.h>
 #include <OpenGL/OpenGL.h> // TODO: Replace with enums
@@ -22,7 +26,7 @@ struct draw_options
 
 struct device_vertex
 {
-	struct vector3 coord;
+	struct vector4 coord;
 	struct vector4 color;
 };
 
@@ -40,5 +44,9 @@ void draw_primitive(struct drawable *d,
 void draw_flush(struct drawable *d);
 void draw_finish(struct drawable *d);
 void draw_flip(struct drawable *d);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif // __cplusplus
 
 #endif //SOGL_DRAW_H

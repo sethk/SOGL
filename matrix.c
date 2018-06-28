@@ -288,6 +288,22 @@ matrix4x4_make_scaling(scalar_t x, scalar_t y, scalar_t z)
 	return m;
 }
 
+struct matrix4x4
+matrix4x4_make_ortho(scalar_t left, scalar_t right, scalar_t bottom, scalar_t top, scalar_t near_z, scalar_t far_z)
+{
+	scalar_t width = right - left, height = top - bottom, depth = far_z - near_z;
+	struct matrix4x4 m;
+	bzero(&m, sizeof(m));
+	m.cols[0][0] = 2.0 / width;
+	m.cols[1][1] = 2.0 / height;
+	m.cols[2][2] = 2.0 / depth;
+	m.cols[3][0] = -(right + left) / width;
+	m.cols[3][1] = -(top + bottom) / height;
+	m.cols[3][2] = -(far_z + near_z) / depth;
+	m.cols[3][3] = 1.0;
+	return m;
+}
+
 scalar_t
 matrix4x4_det(const struct matrix4x4 m)
 {

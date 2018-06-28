@@ -8,6 +8,10 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 struct window
 {
 	struct drawable *drawable;
@@ -23,5 +27,9 @@ void window_update(struct window *w,
                    u_int x, u_int y, u_int width, u_int height,
                    bool flipped_y);
 void window_flip(struct window *w);
+
+#ifdef __cplusplus
+}
+#endif // __cplusplus
 
 #endif //SOGL_WINDOW_H

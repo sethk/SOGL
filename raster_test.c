@@ -61,10 +61,12 @@ display(void)
 	point(1.5, 4.5);
 	point(3.5, 4);
 	point(6, 4.5);
+	point(9, 4);
 	point(12, 4);
 	grey(0.25);
 	point(13, 4);
 	grey(0.5);
+	point(14, 6);
 	point(0.25, 2.75);
 	point(3.5, 1.25);
 	point(5.25, 1.5);

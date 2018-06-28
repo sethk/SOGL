@@ -78,6 +78,7 @@ struct vector4
 			scalar_t r, g, b, a;
 		};
 		struct vector3 xyz;
+		struct vector2 xy;
 		struct vector3 rgb;
 		scalar_t v[4];
 	};

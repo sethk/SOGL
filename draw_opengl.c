@@ -2,6 +2,7 @@
 // Created by Seth Kingsley on 1/8/18.
 //
 
+#include <OpenGL/GL.h>
 #include <OpenGL/CGLContext.h>
 #include <OpenGL/CGLCurrent.h>
 #include <stdlib.h>
@@ -69,7 +70,7 @@ draw_primitive(struct drawable *d,
 		case 4: mode = GL_QUADS; break;
 		default: mode = GL_POLYGON;
 	}
-	d->disp->logic_op(d->rend, options.draw_op);
+	d->disp.logic_op(d->rend, options.draw_op);
 	if (options.test_depth)
 		d->disp.enable(d->rend, GL_DEPTH_TEST);
 	else
@@ -78,7 +79,7 @@ draw_primitive(struct drawable *d,
 	for (GLuint i = 0; i < num_verts; ++i)
 	{
 		d->disp.color4dv(d->rend, vertices[i].color.v);
-		d->disp.vertex3dv(d->rend, vertices[i].coord.v);
+		d->disp.vertex4dv(d->rend, vertices[i].coord.v);
 	}
 	d->disp.end(d->rend);
 	//d->disp.flush(d->rend);
