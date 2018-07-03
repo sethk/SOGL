@@ -89,7 +89,8 @@ main(int ac, char **av)
 	gluPerspective(70, 1, 0.1, 10.0);
 
 	glEnable(GL_DEPTH_TEST);
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glEnable(GL_CULL_FACE);
+	//glPolygonMode(GL_FRONT, GL_LINE);
 
 	glutMainLoop();
 

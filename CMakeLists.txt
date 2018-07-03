@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.9)
 project(SOGL)
 
+set(CMAKE_CXX_STANDARD 11)
 add_compile_options(-mmacos-version-min=10.13)
 add_compile_options(-Werror -Wall -Wformat -Wextra -Wno-deprecated -Wno-unused-parameter -Wno-unused-function -Wno-missing-field-initializers)
 add_compile_options(-O0 -fno-inline)
@@ -17,7 +18,6 @@ add_custom_command(
 )
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-set(RASTER_SOURCES raster_slow.c)
 #set(RASTER_SOURCES raster_fast.c)
 set(DRAW_SOURCES draw_raster.c raster.c ${RASTER_SOURCES})
 #set(DRAW_SOURCES draw_opengl.c)

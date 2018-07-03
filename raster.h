@@ -51,7 +51,7 @@ struct polygon_edge
 	raster_dist_t delta_x;
 	raster_loc_t delta_y;
 	raster_loc_t x_num;
-	float depth_incr;
+	raster_depth_t depth_incr;
 	struct polygon_edge *next;
 };
 
@@ -73,39 +73,16 @@ struct drawable
 	raster_loc_t view_x, view_y, view_width, view_height;
 	struct matrix4x4 view_trans;
 	struct raster_color *color_buffer;
-	float *depth_buffer;
-	struct polygon_edge **edge_table;
+	raster_depth_t *depth_buffer;
+	//struct polygon_edge **edge_table;
 	struct raster_span *spans;
 	u_int num_spans;
 };
 
-raster_loc_t raster_x_from_device(struct drawable *d, GLdouble dx);
-raster_loc_t raster_y_from_device(struct drawable *d, GLdouble dy);
-raster_depth_t raster_z_from_device(struct drawable *d, scalar_t dz);
-struct raster_vertex raster_from_device(struct drawable *d, struct device_vertex dv);
-struct vector2 raster_to_device(struct drawable *d, struct raster_coord rc);
 void raster_pixel(struct drawable *d, struct draw_options options, struct raster_vertex vertex);
-void raster_horiz_line(struct drawable *d,
-                       struct draw_options options,
-                       struct device_vertex p1,
-                       struct device_vertex p2);
-void raster_gradual_line(struct drawable *d,
-                         struct draw_options options,
-                         struct device_vertex p1,
-                         struct device_vertex p2);
-void raster_steep_line(struct drawable *d,
-                       struct draw_options options,
-                       struct device_vertex p1,
-                       struct device_vertex p2);
-void raster_vertical_line(struct drawable *d,
-                          struct draw_options options,
-                          struct device_vertex p1,
-                          struct device_vertex p2);
-void raster_triangle(struct drawable *d, struct draw_options options, const struct window_vertex vertices[3]);
 void raster_scan_point(struct drawable *d, const struct window_vertex *vertex);
-void raster_scan_trapezoid(struct drawable *d,
-                           const struct device_vertex *left_bottom, const struct device_vertex *left_top,
-                           const struct device_vertex *right_bottom, const struct device_vertex *right_top);
+void raster_scan_line(struct drawable *d, const struct window_vertex *v1, const struct window_vertex *v2);
+void raster_scan_triangle(struct drawable *d, const struct window_vertex vertices[3]);
 void raster_fill_spans(struct drawable *d, struct draw_options options);
 
 #ifdef __cplusplus

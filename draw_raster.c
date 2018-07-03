@@ -31,7 +31,7 @@ draw_reshape(struct drawable *d, u_int width, u_int height)
 	{
 		free(d->color_buffer);
 		free(d->depth_buffer);
-		free(d->edge_table);
+		//free(d->edge_table);
 		free(d->spans);
 	}
 	d->window_width = width;
@@ -39,7 +39,7 @@ draw_reshape(struct drawable *d, u_int width, u_int height)
 	assert(sizeof(*(d->color_buffer)) == 4);
 	d->color_buffer = malloc(sizeof(*(d->color_buffer)) * d->window_width * d->window_height);
 	d->depth_buffer = malloc(sizeof(*(d->depth_buffer)) * d->window_width * d->window_height);
-	d->edge_table = calloc(d->window_height, sizeof(*(d->edge_table)));
+	//d->edge_table = calloc(d->window_height, sizeof(*(d->edge_table)));
 	d->spans = calloc(d->window_height, sizeof(*(d->spans)));
 }
 
@@ -122,38 +122,18 @@ draw_line(struct drawable *d,
 	if (!draw_clip_line(&p1, &p2))
 		return;
 
-	scalar_t delta_x = p2.coord.x - p1.coord.x;
-	scalar_t delta_y = p2.coord.y - p1.coord.y;
-	if (delta_y == 0)
-		raster_horiz_line(d, options, p1, p2);
-	else if (delta_x == 0)
-		raster_vertical_line(d, options, p1, p2);
-	else
-	{
-		if (fabs(delta_y) >= fabs(delta_x))
-			raster_steep_line(d, options, p1, p2);
-		else
-			raster_gradual_line(d, options, p1, p2);
-	}
-}
+	struct window_vertex win_vert1 = draw_map_vertex(d, &p1);
+	struct window_vertex win_vert2 = draw_map_vertex(d, &p2);
 
-static int
-draw_compare_vertices(const struct device_vertex *v1, const struct device_vertex *v2)
-{
-	if (v1->coord.y < v2->coord.y)
-		return 1;
-	else if (v1->coord.y > v2->coord.y)
-		return -1;
-	else if (v1->coord.x < v2->coord.x)
-		return 1;
-	else
-		return -1;
+	d->num_spans = 0;
+	raster_scan_line(d, &win_vert1, &win_vert2);
+	raster_fill_spans(d, options);
 }
 
 static void
 draw_triangle(struct drawable *d,
               struct draw_options options,
-              struct device_vertex vertices[3],
+              const struct device_vertex vertices[3],
               bool front)
 {
 	if (!draw_clip_point(&(vertices[0].coord)) ||
@@ -162,88 +142,50 @@ draw_triangle(struct drawable *d,
 		return;
 
 	struct window_vertex win_verts[3];
-	for (u_int i = 0; i < 3; ++i)
-		win_verts[i] = draw_map_vertex(d, &vertices[i]);
-	raster_triangle(d, options, win_verts);
-	//qsort(vertices, 3, sizeof(vertices[0]), (int (*)(const void *, const void *))&draw_compare_vertices);
-	/*
-	u_int top_index;
-	if (vertices[0].coord.y > vertices[1].coord.y)
-	{
-		if (vertices[0].coord.y > vertices[2].coord.y)
-			top_index = 0;
-		else
-			top_index = 2;
-	}
-	else
-	{
-		if (vertices[1].coord.y > vertices[2].coord.y)
-			top_index = 1;
-		else
-			top_index = 2;
-	}
-		top_index = 0;
-	else if (vertices[0].coord.y < vertices[1].coord.y)
-	{
-		if (vertices[1].coord.y > vertices[2].coord.y)
-			top_index = 1;
-		else if (vertices[1].coord.y < vertices[2].coord.y)
-			top_index = 2;
-		else // Horizontal top
-		{
-			if (vertices[1].coord.x < vertices[2].coord.x)
-				top_index = 1;
-			else
-				top_index = 2;
-		}
-	}
-	else // Horizontal top
-	{
-		if (vertices[0].coord.x < vertices[1].coord.x)
-			top_index = 0;
-		else
-			top_index = 1;
-	}
-	u_int left_index, right_index;
 	if (front)
-	{
-		left_index = (top_index + 2) % 3;
-		right_index = (top_index + 1) % 3;
-	}
+		for (u_int i = 0; i < 3; ++i)
+			win_verts[i] = draw_map_vertex(d, &vertices[i]);
 	else
-	{
-		left_index = (top_index + 1) % 3;
-		right_index = (top_index + 2) % 3;
-	}
-	assert(top_index != left_index && left_index != right_index && right_index != top_index);
-	assert(vertices[top_index].coord.y >= vertices[left_index].coord.y && vertices[top_index].coord.y >= vertices[right_index].coord.y);
-	assert(vertices[left_index].coord.x < vertices[right_index].coord.x);
-	 */
+		for (u_int i = 0; i < 3; ++i)
+			win_verts[2 - i] = draw_map_vertex(d, &vertices[i]);
 
-	/*
 	d->num_spans = 0;
-	raster_scan_trapezoid(d, &(vertices[0]), &(vertices[1]), &(vertices[0]), &(vertices[2]));
+	raster_scan_triangle(d, win_verts);
 	raster_fill_spans(d, options);
-	 */
 }
 
 static void
 draw_polygon(struct drawable *d, struct draw_options options, const struct device_vertex vertices[], u_int num_verts)
 {
-	struct vector2 u = vector2_sub(vertices[2].coord.xy, vertices[0].coord.xy);
-	struct vector2 v = vector2_sub(vertices[1].coord.xy, vertices[0].coord.xy);
+	GLenum polygon_mode;
+	bool front;
+	struct vector2 norm_device_coords[3];
+	for (u_int i = 0; i < 3; ++i)
+		norm_device_coords[i] = vector2_divide_scalar(vertices[i].coord.xy, vertices[i].coord.w);
+	struct vector2 u = vector2_sub(norm_device_coords[1], norm_device_coords[0]);
+	struct vector2 v = vector2_sub(norm_device_coords[2], norm_device_coords[0]);
 	struct matrix2x2 tri_space = matrix2x2_build(u, v);
 	scalar_t det = matrix2x2_det(tri_space);
-	bool front = (det >= 0);
+	if (det > 0)
+	{
+		front = true;
+		polygon_mode = options.polygon_modes[0];
+	}
+	else if (det < 0)
+	{
+		// TODO: Cull backfaces
 
-	// TODO: Cull backfaces
+		front = false;
+		polygon_mode = options.polygon_modes[1];
+	}
+	else
+		return;
 
-	GLenum polygon_mode = options.polygon_modes[(front) ? 0 : 1];
 	switch (polygon_mode)
 	{
 		case GL_POINT:
 			for (GLuint i = 0; i < num_verts; ++i)
-				raster_pixel(d, options, raster_from_device(d, vertices[i]));
+				draw_point(d, options, vertices[i]);
 			break;
 
 		case GL_LINE:
@@ -255,7 +197,7 @@ draw_polygon(struct drawable *d, struct draw_options options, const struct devic
 		{
 			struct device_vertex tri_verts[3];
 			tri_verts[0] = vertices[0];
-			for (GLuint i = 1; i < num_verts - 1; i+= 1)
+			for (GLuint i = 1; i < num_verts - 1; ++i)
 			{
 				tri_verts[1] = vertices[i];
 				tri_verts[2] = vertices[i + 1];
@@ -342,52 +284,6 @@ draw_trapezoid(struct drawable *d,
 		}
 	}
 }
-
-static int
-draw_compare_vertices(const struct raster_vertex *a, const struct raster_vertex *b)
-{
-	int delta_y = (int)a->y - b->y;
-	if (delta_y != 0)
-		return delta_y;
-	return (int)a->x - b->x;
-}
- */
-
-/*
-static void
-draw_triangle(struct drawable *d, struct draw_options options, struct raster_vertex vertices[])
-{
-	qsort(vertices, 3, sizeof(vertices[0]), (int (*)(const void *, const void *))draw_compare_vertices);
-	assert(vertices[0].y <= vertices[1].y && vertices[1].y <= vertices[2].y);
-
-	if (vertices[0].y == vertices[1].y)
-		draw_trapezoid(d, options, vertices[0], vertices[1], vertices[2], vertices[2]);
-	else if (vertices[1].y == vertices[2].y)
-		draw_trapezoid(d, options, vertices[0], vertices[0], vertices[1], vertices[2]);
-	else
-	{
-		//if (vertices[0].x < vertices[1].x)
-		{
-			GLdouble mid = (GLdouble)(vertices[1].y - vertices[0].y) / (vertices[2].y - vertices[0].y);
-			struct raster_vertex mid_vertex;
-			//assert(vertices[2].x <= vertices[0].x);
-			mid_vertex.x = vertices[0].x + mid * ((GLdouble)vertices[2].x - vertices[0].x);
-			mid_vertex.y = vertices[1].y;
-			mid_vertex.depth = vertices[0].depth + mid * (vertices[2].depth - vertices[0].depth);
-			mid_vertex.color = vector4_lerp(vertices[0].color, vertices[2].color, mid);
-			if (mid_vertex.x < vertices[1].x)
-			{
-				draw_trapezoid(d, options, vertices[0], vertices[0], mid_vertex, vertices[1]);
-				draw_trapezoid(d, options, mid_vertex, vertices[1], vertices[2], vertices[2]);
-			}
-			else
-			{
-				draw_trapezoid(d, options, vertices[0], vertices[0], vertices[1], mid_vertex);
-				draw_trapezoid(d, options, vertices[1], mid_vertex, vertices[2], vertices[2]);
-			}
-		}
-	}
-}
  */
 
 void
@@ -396,28 +292,6 @@ draw_primitive(struct drawable *d,
                const struct device_vertex vertices[],
                u_int num_verts)
 {
-	/*
-	struct raster_vertex raster_vertices[MAX_PRIMITIVE_VERTICES];
-	for (u_int i = 0; i < num_verts; ++i)
-	{
-		assert(vertices[i].x >= -1.0 && vertices[i].x <= 1.0);
-		raster_vertices[i].x = d->view_x + lround(((vertices[i].x + 1.0) / 2.0) * d->view_width);
-		assert(vertices[i].y >= -1.0 && vertices[i].x <= 1.0);
-#if FLIPPED_Y
-		raster_vertices[i].y = (d->view_y + d->view_height) -  lround(((vertices[i].y + 1.0) / 2.0) * d->view_height);
-#else
-		raster_vertices[i].y = d->view_y + lround(((vertices[i].y + 1.0) / 2.0) * d->view_height);
-#endif // FLIPPED_Y
-		assert(vertices[i].z >= -1.0 && vertices[i].z <= 1.0);
-		raster_vertices[i].depth = (vertices[i].z + 1) / 2.0;
-		assert(colors[i].r >= 0 && colors[i].r <= 1.0);
-		assert(colors[i].g >= 0 && colors[i].g <= 1.0);
-		assert(colors[i].b >= 0 && colors[i].b <= 1.0);
-		assert(colors[i].a >= 0 && colors[i].a <= 1.0);
-		raster_vertices[i].color = colors[i];
-	}
-	 */
-
 	switch (num_verts)
 	{
 		case 1:

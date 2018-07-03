@@ -19,7 +19,7 @@ struct window
 
 struct raster_color
 {
-	u_char red, green, blue, alpha;
+	u_int8_t red, green, blue, alpha;
 };
 
 void window_update(struct window *w,

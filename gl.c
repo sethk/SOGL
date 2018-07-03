@@ -435,11 +435,9 @@ render_primitive(const struct modelview modelview,
 		struct shaded_vertex shaded[MAX_PRIMITIVE_VERTICES];
 		render_shade_vertices(modelview, proj, vertices, indices, num_vertices, lighting, shaded);
 		struct device_vertex device_vertices[MAX_PRIMITIVE_VERTICES];
-		//struct vector3 coords[MAX_PRIMITIVE_VERTICES];
-		//struct vector4 colors[MAX_PRIMITIVE_VERTICES];
 		for (GLuint i = 0; i < num_vertices; ++i)
 		{
-			device_vertices[i].coord = shaded[i].view_pos; //vector4_project(shaded[i].view_pos);
+			device_vertices[i].coord = shaded[i].view_pos;
 			device_vertices[i].color = render_shade_pixel(vertices[indices[i]].mat, shaded[i], lighting);
 		}
 
