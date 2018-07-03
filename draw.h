@@ -22,6 +22,8 @@ struct draw_options
 	bool test_depth;
 	GLenum depth_func;
 	GLenum polygon_modes[2];
+	bool cull_faces;
+	bool faces_culled[2];
 };
 
 struct device_vertex

@@ -70,7 +70,9 @@ struct draw_options draw_options =
 	.draw_op = GL_COPY,
 	.test_depth = false,
 	.depth_func = GL_LESS,
-	.polygon_modes = {GL_FILL, GL_FILL}
+	.polygon_modes = {GL_FILL, GL_FILL},
+	.cull_faces = false,
+	.faces_culled = {false, true}
 };
 static const struct vector4 origin = {.x = 0, .y = 0, .z = 0, .w = 1};
 static GLuint primitive_index;
@@ -1015,6 +1017,10 @@ gl_enable(GLIContext rend, GLenum cap)
 			lighting.lights[cap - GL_LIGHT0].enabled = GL_TRUE;
 			break;
 
+		case GL_CULL_FACE:
+			draw_options.cull_faces = true;
+			break;
+
 		default:
 			fprintf(stderr, "%s() TODO 0x%x\n", __FUNCTION__, cap);
 			//opengl_disp.enable(opengl_rend, cap);
@@ -1036,6 +1042,10 @@ gl_disable(GLIContext ctx, GLenum cap)
 
 		case GL_LIGHT0:
 			lighting.lights[cap - GL_LIGHT0].enabled = GL_FALSE;
+			break;
+
+		case GL_CULL_FACE:
+			draw_options.cull_faces = false;
 			break;
 
 		default:

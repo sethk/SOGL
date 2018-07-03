@@ -168,12 +168,16 @@ draw_polygon(struct drawable *d, struct draw_options options, const struct devic
 	scalar_t det = matrix2x2_det(tri_space);
 	if (det > 0)
 	{
+		if (options.cull_faces && options.faces_culled[0])
+			return;
+
 		front = true;
 		polygon_mode = options.polygon_modes[0];
 	}
 	else if (det < 0)
 	{
-		// TODO: Cull backfaces
+		if (options.cull_faces && options.faces_culled[1])
+			return;
 
 		front = false;
 		polygon_mode = options.polygon_modes[1];
