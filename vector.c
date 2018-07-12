@@ -8,49 +8,49 @@
 #include <strings.h>
 #include "vector.h"
 
-static void
+static inline void
 vector_add(const scalar_t *av, const scalar_t *bv, u_int size, scalar_t *sumv)
 {
 	for (u_int i = 0; i < size; ++i)
 		sumv[i] = av[i] + bv[i];
 }
 
-static void
+static inline void
 vector_clamp(const scalar_t *v, u_int size, scalar_t *cv)
 {
 	for (u_int i = 0; i < size; ++i)
 		cv[i] = fmax(fmin(v[i], 1.0), 0);
 }
 
-static void
+static inline void
 vector_sub(const scalar_t *av, const scalar_t *bv, u_int size, scalar_t *diffv)
 {
 	for (u_int i = 0; i < size; ++i)
 		diffv[i] = av[i] - bv[i];
 }
 
-static void
+static inline void
 vector_mult_scalar(const scalar_t *v, u_int size, scalar_t mult, scalar_t *prodv)
 {
 	for (u_int i = 0; i < size; ++i)
 		prodv[i] = v[i] * mult;
 }
 
-static void
+static inline void
 vector_mult_vector(const scalar_t *av, const scalar_t *bv, u_int size, scalar_t *prodv)
 {
 	for (u_int i = 0; i < size; ++i)
 		prodv[i] = av[i] * bv[i];
 }
 
-static void
+static inline void
 vector_divide_scalar(const scalar_t *v, u_int size, scalar_t divisor, scalar_t *quotv)
 {
 	for (u_int i = 0; i < size; ++i)
 		quotv[i] = v[i] / divisor;
 }
 
-static scalar_t
+static inline scalar_t
 vector_length(const scalar_t *v, u_int size)
 {
 	scalar_t sum_squares = 0;
@@ -59,13 +59,13 @@ vector_length(const scalar_t *v, u_int size)
 	return sqrt(sum_squares);
 }
 
-static void
+static inline void
 vector_norm(const scalar_t *v, u_int size, scalar_t *nv)
 {
 	vector_divide_scalar(v, size, vector_length(v, size), nv);
 }
 
-static void
+static inline void
 vector_print(const scalar_t *v, u_int size, const char *label)
 {
 	fputs(label, stderr);
@@ -75,7 +75,7 @@ vector_print(const scalar_t *v, u_int size, const char *label)
 	fputs(")\n", stderr);
 }
 
-static void
+static inline void
 vector_check_norm(const scalar_t *v, u_int size, const char *label)
 {
 	scalar_t length = vector_length(v, size);
@@ -87,7 +87,7 @@ vector_check_norm(const scalar_t *v, u_int size, const char *label)
 	}
 }
 
-static scalar_t
+static inline scalar_t
 vector_dot(const scalar_t *av, const scalar_t *bv, u_int size)
 {
 	scalar_t dot = 0;
