@@ -1396,7 +1396,6 @@ gl_get_error(GLIContext ctx)
 static void
 gl_swap_APPLE(GLIContext ctx)
 {
-	gl_finish(ctx);
 	draw_flip(drawable);
 }
 

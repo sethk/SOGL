@@ -322,11 +322,11 @@ draw_flush(struct drawable *d)
 void
 draw_finish(struct drawable *d)
 {
-	window_update(d->window, d->color_buffer, 0, 0, d->window_width, d->window_height, FLIPPED_Y);
 }
 
 void
 draw_flip(struct drawable *d)
 {
+	draw_flush(d);
 	window_flip(d->window);
 }
