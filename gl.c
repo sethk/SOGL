@@ -14,6 +14,7 @@
 
 #define number_of(a) (sizeof(a) / sizeof(*(a)))
 
+#define SHOW_DEBUG_WIN 0
 #define DEBUG_WIN (-5)
 
 /* Render */
@@ -65,16 +66,16 @@ struct shaded_vertex
 };
 
 struct drawable *drawable;
-struct draw_options draw_options =
-{
-	.draw_op = GL_COPY,
-	.test_depth = false,
-	.depth_func = GL_LESS,
-	.polygon_modes = {GL_FILL, GL_FILL},
-	.cull_faces = false,
-	.faces_culled = {false, true}
-};
 static const struct vector4 origin = {.x = 0, .y = 0, .z = 0, .w = 1};
+struct draw_options draw_options =
+		{
+				.draw_op = GL_COPY,
+				.test_depth = false,
+				.depth_func = GL_LESS,
+				.polygon_modes = {GL_FILL, GL_FILL},
+				.cull_faces = false,
+				.faces_culled = {false, true}
+		};
 static GLuint primitive_index;
 
 int debug_save_win;
@@ -111,17 +112,24 @@ render_update_debug_title(void)
 	glutSetWindowTitle(title);
 }
 
-static void
+static bool
 render_push_debug(void)
 {
-	debug_save_win = glutGetWindow();
-	assert(debug_save_win != DEBUG_WIN);
-	glutSetWindow(DEBUG_WIN);
+	if (debug_rend)
+	{
+		debug_save_win = glutGetWindow();
+		assert(debug_save_win != DEBUG_WIN);
+		glutSetWindow(DEBUG_WIN);
+		return true;
+	}
+	else
+		return false;
 }
 
 static void
 render_pop_debug(void)
 {
+	assert(debug_rend);
 	assert(glutGetWindow() == DEBUG_WIN);
 	glutSetWindow(debug_save_win);
 }
@@ -443,7 +451,8 @@ render_primitive(const struct modelview modelview,
 			device_vertices[i].color = render_shade_pixel(vertices[indices[i]].mat, shaded[i], lighting);
 		}
 
-		render_primitive_debug(modelview, proj, vertices, indices, num_vertices, lighting);
+		if (debug_rend)
+			render_primitive_debug(modelview, proj, vertices, indices, num_vertices, lighting);
 		draw_primitive(drawable, draw_options, device_vertices, num_vertices);
 	}
 
@@ -997,7 +1006,8 @@ gl_clear(GLIContext rend, GLbitfield mask)
 	bool depth = ((mask & GL_DEPTH_BUFFER_BIT) != 0);
 	draw_clear(drawable, color, clear_color, depth, 1.0);
 
-	debug_disp->clear(debug_rend, mask & GL_COLOR_BUFFER_BIT);
+	if (debug_rend)
+		debug_disp->clear(debug_rend, mask & GL_COLOR_BUFFER_BIT);
 }
 
 static void
@@ -1317,8 +1327,8 @@ gl_flush(GLIContext rend)
 	draw_flush(drawable);
 	primitive_index = 0;
 
-	debug_disp->flush(debug_rend);
-
+	if (debug_rend)
+		debug_disp->flush(debug_rend);
 }
 
 static void
@@ -1327,7 +1337,8 @@ gl_finish(GLIContext rend)
 	draw_finish(drawable);
 	primitive_index = 0;
 
-	debug_disp->finish(debug_rend);
+	if (debug_rend)
+		debug_disp->finish(debug_rend);
 }
 
 static void
@@ -1364,7 +1375,8 @@ gl_viewport(GLIContext rend, GLint x, GLint y, GLsizei width, GLsizei height)
 {
 	draw_set_view(drawable, x, y, width, height);
 
-	debug_disp->viewport(debug_rend, x, y, width, height);
+	if (debug_rend)
+		debug_disp->viewport(debug_rend, x, y, width, height);
 }
 
 static void
@@ -1468,10 +1480,12 @@ reshape(int width, int height)
 	else
 		glViewport(0, 0, width, height);
 
-	render_push_debug();
-	openGLUTReshapeWindow(width, height);
-	openGLUTPositionWindow(main_win_pos.x + width + 20, main_win_pos.y);
-	render_pop_debug();
+	if (render_push_debug())
+	{
+		openGLUTReshapeWindow(width, height);
+		openGLUTPositionWindow(main_win_pos.x + width + 20, main_win_pos.y);
+		render_pop_debug();
+	}
 }
 
 static void
@@ -1565,6 +1579,7 @@ glutInitWindowSize(int width, int height)
 void
 glutMainLoop(void)
 {
+#if SHOW_DEBUG_WIN
 	if (debug_win == -1)
 	{
 		openGLUTInitWindowPosition(main_win_pos.x + init_win_size.width + 20, main_win_pos.y);
@@ -1584,6 +1599,7 @@ glutMainLoop(void)
 		glMatrixMode(GL_MODELVIEW);
 		openGLUTSetWindow(glut_main_win);
 	}
+#endif // SHOW_DEBUG_WIN
 
 	openGLUTMainLoop();
 }
@@ -1637,9 +1653,11 @@ glutSwapBuffers(void)
 	draw_finish(drawable);
 	openGLUTSwapBuffers();
 
-	render_push_debug();
-	openGLUTSwapBuffers();
-	render_pop_debug();
+	if (render_push_debug())
+	{
+		openGLUTSwapBuffers();
+		render_pop_debug();
+	}
 }
 
 void
