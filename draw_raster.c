@@ -7,6 +7,7 @@
 #include <err.h>
 #include <assert.h>
 #include <math.h>
+#include <memory.h>
 #include "draw.h"
 #include "window.h"
 #include "raster.h"
@@ -64,18 +65,20 @@ draw_set_view(struct drawable *d, u_int x, u_int y, u_int width, u_int height)
 void
 draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, bool depth, GLfloat clear_depth)
 {
-	struct raster_vertex vertex;
-	vertex.coord.depth = clear_depth;
-	vertex.color = clear_color;
-	for (vertex.coord.y = 0; vertex.coord.y < d->window_height; ++vertex.coord.y)
-		for (vertex.coord.x = 0; vertex.coord.x < d->window_width; ++vertex.coord.x)
-		{
-			struct draw_options options;
-			options.draw_op = (color) ? GL_COPY : GL_NOOP;
-			options.test_depth = depth;
-			options.depth_func = GL_ALWAYS;
-			raster_pixel(d, options, vertex);
-		}
+	if (depth)
+	{
+		raster_depth_t depth = clear_depth;
+		static_assert(sizeof(depth) == 4, "sizeof(depth) must be 4");
+		memset_pattern4(d->depth_buffer, &depth, sizeof(*(d->depth_buffer)) * d->window_width * d->window_height);
+	}
+
+	if (color)
+	{
+		struct raster_color pixel;
+		raster_write_pixel(&clear_color, &pixel);
+		static_assert(sizeof(pixel) == 4, "sizeof(pixel) must be 4");
+		memset_pattern4(d->color_buffer, &pixel, sizeof(*(d->color_buffer)) * d->window_width * d->window_height);
+	}
 }
 
 static bool
