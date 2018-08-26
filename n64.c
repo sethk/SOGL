@@ -7,6 +7,8 @@
 #include <math.h>
 #include <stdio.h>
 
+#define MAX_SPEED 1
+
 const u_char *data = NULL;
 float time = 0;
 
@@ -66,6 +68,10 @@ display(void)
 	draw_elems(GL_TRIANGLE_STRIP, 56, 278);
 
 	glutSwapBuffers();
+
+#if MAX_SPEED
+	idle();
+#endif // MAX_SPEED
 }
 
 int
@@ -83,7 +89,9 @@ main(int ac, char **av)
 	glutInitWindowSize(512, 512);
 	glutCreateWindow("N64 Logo");
 	glutDisplayFunc(display);
+#if !MAX_SPEED
 	glutIdleFunc(idle);
+#endif // !MAX_SPEED
 
 	glMatrixMode(GL_PROJECTION);
 	gluPerspective(70, 1, 0.1, 10.0);
