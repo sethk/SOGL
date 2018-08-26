@@ -79,6 +79,7 @@ struct drawable
 	u_int num_spans;
 };
 
+void raster_write_pixel(const struct vector4 *color, struct raster_color *pixel);
 void raster_pixel(struct drawable *d, struct draw_options options, struct raster_vertex vertex);
 void raster_scan_point(struct drawable *d, const struct window_vertex *vertex);
 void raster_scan_line(struct drawable *d, const struct window_vertex *v1, const struct window_vertex *v2);
