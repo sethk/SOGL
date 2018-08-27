@@ -229,7 +229,7 @@ TEST_F(ScanTest, ScanLine1_Octant7)
 
 TEST_F(ScanTest, ScanLine2_Octant6)
 {
-	TestScanLine(3.75, 16.25, 3.9, 14.9, {{.left_x = 3, .y = 15, .x_delta = 1}});
+	TestScanLine(3.75, 16.1, 3.9, 14.9, {{.left_x = 3, .y = 15, .x_delta = 1}});
 }
 
 TEST_F(ScanTest, Scanline3_Octant6)
@@ -400,7 +400,11 @@ TEST_F(ScanTest, ScanLine33_Up)
 
 TEST_F(ScanTest, ScanLine34_Octant6)
 {
-	TestScanLine(3, 8.5, 1, 6.5, {{.left_x = 1, .y = 7, .x_delta = 1}, {.left_x = 2, .y = 8, .x_delta = 1}});
+	TestScanLine(3, 8.5, 1, 6.5,
+	             {
+			             {.left_x = 2, .y = 8, .x_delta = 1},
+			             {.left_x = 1, .y = 7, .x_delta = 1},
+	             });
 }
 
 TEST_F(ScanTest, ScanLine35_Octant7)
@@ -437,9 +441,13 @@ TEST_F(ScanTest, ScanLine40_Octant0)
 	TestScanLine(1, 6.5, 3, 8.5, {{.left_x = 1, .y = 7, .x_delta = 1}, {.left_x = 2, .y = 8, .x_delta = 1}});
 }
 
-TEST_F(ScanTest, ScanLine41_Octant6)
+TEST_F(ScanTest, ScanLine41_Octant4)
 {
-	TestScanLine(8.5, 6, 6.5, 4, {{.left_x = 8, .y = 6, .x_delta = 1}});
+	TestScanLine(8.5, 6, 6.5, 4,
+	{
+		{.left_x = 8, .y = 6, .x_delta = 1},
+		{.left_x = 7, .y = 5, .x_delta = 1},
+	});
 }
 
 TEST_F(ScanTest, ScanLine42_Octant7)
@@ -461,9 +469,9 @@ TEST_F(ScanTest, ScanLine45_Octant6)
 {
 	TestScanLine(14.1, 5.2, 12.2, 2.1,
 	             {
-			             {.left_x = 12, .y = 2, .x_delta = 1},
+			             {.left_x = 13, .y = 4, .x_delta = 1},
 			             {.left_x = 13, .y = 3, .x_delta = 1},
-			             {.left_x = 13, .y = 4, .x_delta = 1}
+			             {.left_x = 12, .y = 2, .x_delta = 1},
 	             });
 }
 
@@ -471,9 +479,9 @@ TEST_F(ScanTest, ScanLine46_Octant6)
 {
 	TestScanLine(16.1, 5.2, 14, 1.5,
 	             {
-			             {.left_x = 14, .y = 2, .x_delta = 1},
+			             {.left_x = 15, .y = 4, .x_delta = 1},
 			             {.left_x = 15, .y = 3, .x_delta = 1},
-			             {.left_x = 15, .y = 4, .x_delta = 1}
+			             {.left_x = 14, .y = 2, .x_delta = 1},
 	             });
 }
 
@@ -494,7 +502,11 @@ TEST_F(ScanTest, ScanLine49_Left)
 
 TEST_F(ScanTest, ScanLine50_Octant6)
 {
-	TestScanLine(12, 4.5, 10, 2.5, {{.left_x = 10, .y = 3, .x_delta = 1}, {.left_x = 11, .y = 4, .x_delta = 1}});
+	TestScanLine(12, 4.5, 10, 2.5,
+	             {
+			             {.left_x = 11, .y = 4, .x_delta = 1},
+			             {.left_x = 10, .y = 3, .x_delta = 1},
+	             });
 }
 
 TEST_F(ScanTest, ScanLine51_Right)
@@ -509,7 +521,11 @@ TEST_F(ScanTest, ScanLine52_Octant6)
 
 TEST_F(ScanTest, ScanLine53_Octant6)
 {
-	TestScanLine(7, 2.5, 5, 0.5, {{.left_x = 5, .y = 1, .x_delta = 1}, {.left_x = 6, .y = 2, .x_delta = 1}});
+	TestScanLine(7, 2.5, 5, 0.5,
+	             {
+			             {.left_x = 6, .y = 2, .x_delta = 1},
+			             {.left_x = 5, .y = 1, .x_delta = 1},
+	             });
 }
 
 TEST_F(ScanTest, ScanLine54_Octant0)
