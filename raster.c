@@ -674,13 +674,13 @@ raster_scan_gradual_right_line(struct drawable *d,
 }
 
 static void
-raster_scan_octant1_line(struct drawable *d,
-                         const struct window_vertex *v1, const struct window_vertex *v2,
-                         scalar_t x_delta, scalar_t y_delta)
+raster_scan_steep_up_line(struct drawable *d,
+                          const struct window_vertex *v1, const struct window_vertex *v2,
+                          scalar_t x_delta, scalar_t y_delta)
 {
-	assert(x_delta > 0);
+	assert(x_delta < 0);
 	assert(y_delta > 0);
-	assert(x_delta < y_delta);
+	assert(-x_delta < y_delta);
 
 	const raster_loc_t x1 = (raster_loc_t)floor(v1->coord.x);
 	const raster_loc_t y1 = (raster_loc_t)floor(v1->coord.y);
@@ -716,81 +716,10 @@ raster_scan_octant1_line(struct drawable *d,
 
 	scalar_t y2_frac = v2->coord.y - y2;
 	raster_loc_t end_y = y2;
+	//scalar_t end_t;
 	if (y2_frac > 0.5)
 	{
-		scalar_t x2_frac = v2->coord.y - x2;
-		if (raster_point_part(x2_frac, y2_frac) != DIAMOND)
-			++end_y;
-	}
-
-	if (start_y < end_y)
-	{
-		scalar_t depth_delta = v2->coord.z - v1->coord.z;
-		struct vector4 color_delta = vector4_sub(v2->color, v1->color);
-
-		if (fill_start)
-		{
-			raster_emit_span_para(d, start_y, x1, 1, start_t, 0, v1->coord.z, depth_delta, v1->color, color_delta);
-			++start_y;
-		}
-
-		for (raster_loc_t y = start_y; y != end_y; ++y)
-		{
-			scalar_t t = (y - v1->coord.y) / y_delta;
-			assert(t >= 0 && t <= 1.0);
-			raster_loc_t x = floor(v1->coord.x + t * x_delta);
-
-			raster_emit_span_para(d, y, x, 1, t, 0, v1->coord.z, depth_delta, v1->color, color_delta);
-		}
-	}
-}
-
-static void
-raster_scan_octant2_line(struct drawable *d,
-                         const struct window_vertex *v1, const struct window_vertex *v2,
-                         scalar_t x_delta, scalar_t y_delta)
-{
-	assert(x_delta < 0);
-	assert(y_delta > 0);
-	assert(-x_delta < y_delta);
-
-	const raster_loc_t x1 = (raster_loc_t)floor(v1->coord.x);
-	const raster_loc_t y1 = (raster_loc_t)floor(v1->coord.y);
-	const raster_loc_t x2 = (raster_loc_t)floor(v2->coord.x);
-	const raster_loc_t y2 = (raster_loc_t)floor(v2->coord.y);
-
-	scalar_t x1_frac = v1->coord.x - x1;
-	scalar_t y1_frac = v1->coord.y - y1;
-
-	bool fill_start;
-	scalar_t start_t;
-	if (y1_frac < 0.5)
-	{
-		start_t = (0.5 - y1_frac) / y_delta;
-		scalar_t start_x = v1->coord.x + start_t * x_delta;
-		fill_start = (floor(start_x) == x1);
-	}
-	else if (y1_frac > 0.5)
-	{
-		start_t = 0;
-		fill_start = (raster_point_part(x1_frac, y1_frac) == DIAMOND);
-	}
-	else
-	{
-		start_t = 0;
-		fill_start = true;
-	}
-
-	raster_loc_t start_y = y1;
-	if (!fill_start)
-		++start_y;
-
-	scalar_t y2_frac = v2->coord.y - y2;
-	raster_loc_t end_y = y2;
-	scalar_t end_t;
-	if (y2_frac > 0.5)
-	{
-		end_t = ((end_y + 0.5) - v1->coord.y) / y_delta;
+		//end_t = ((end_y + 0.5) - v1->coord.y) / y_delta;
 		scalar_t end_x = v1->coord.x + start_t * x_delta;
 		if (floor(end_x) == x2)
 		{
@@ -799,8 +728,8 @@ raster_scan_octant2_line(struct drawable *d,
 				++end_x;
 		}
 	}
-	else
-		end_t = 1.0;
+	/*else
+		end_t = 1.0;*/
 
 	if (start_y < end_y)
 	{
@@ -937,7 +866,7 @@ raster_scan_line(struct drawable *d, const struct window_vertex *v1, const struc
 			if (x_delta >= y_delta)
 				raster_scan_gradual_right_line(d, v1, v2, x_delta, y_delta);
 			else
-				raster_scan_octant1_line(d, v1, v2, x_delta, y_delta);
+				raster_scan_steep_up_line(d, v1, v2, x_delta, y_delta);
 		}
 		else if (y_delta < 0)
 		{
@@ -956,7 +885,7 @@ raster_scan_line(struct drawable *d, const struct window_vertex *v1, const struc
 			if (-x_delta >= y_delta)
 				raster_scan_octant3_line(d, v1, v2, x_delta, y_delta);
 			else
-				raster_scan_octant2_line(d, v1, v2, x_delta, y_delta);
+				raster_scan_steep_up_line(d, v1, v2, x_delta, y_delta);
 		}
 		else if (y_delta < 0)
 			;
