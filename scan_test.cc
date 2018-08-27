@@ -262,7 +262,7 @@ TEST_F(ScanTest, ScanLine8_Right)
 	TestScanLine(14.25, 15.9, 14.75, 15.9, {{.left_x = 14, .y = 15, .x_delta = 1}});
 }
 
-TEST_F(ScanTest, ScanLine9_Octant6)
+TEST_F(ScanTest, ScanLine9_Octant7_Null)
 {
 	TestScanLine(15.6, 15.9, 15.9, 15.6, {});
 }
@@ -403,12 +403,12 @@ TEST_F(ScanTest, ScanLine34_Octant6)
 	TestScanLine(3, 8.5, 1, 6.5, {{.left_x = 1, .y = 7, .x_delta = 1}, {.left_x = 2, .y = 8, .x_delta = 1}});
 }
 
-TEST_F(ScanTest, ScanLine35_Octant8)
+TEST_F(ScanTest, ScanLine35_Octant7)
 {
 	TestScanLine(6.5, 8, 8.5, 6,
 	             {
+			             {.left_x = 6, .y = 8, .x_delta = 1},
 			             {.left_x = 7, .y = 7, .x_delta = 1},
-			             {.left_x = 6, .y = 8, .x_delta = 1}
 	             });
 }
 
@@ -442,7 +442,7 @@ TEST_F(ScanTest, ScanLine41_Octant6)
 	TestScanLine(8.5, 6, 6.5, 4, {{.left_x = 8, .y = 6, .x_delta = 1}});
 }
 
-TEST_F(ScanTest, ScanLine42_Octant8)
+TEST_F(ScanTest, ScanLine42_Octant7)
 {
 	TestScanLine(10, 6.5, 12, 4.5, {{.left_x = 10, .y = 6, .x_delta = 1}, {.left_x = 11, .y = 5, .x_delta = 1}});
 }
@@ -452,7 +452,7 @@ TEST_F(ScanTest, ScanLine43_Octant3_Null)
 	TestScanLine(13, 6.5, 12.5, 7, {});
 }
 
-TEST_F(ScanTest, ScanLine44_Octant8)
+TEST_F(ScanTest, ScanLine44_Octant7)
 {
 	TestScanLine(4, 5.5, 6, 3.5, {{.left_x = 4, .y = 5, .x_delta = 1}, {.left_x = 5, .y = 4, .x_delta = 1}});
 }
@@ -482,7 +482,7 @@ TEST_F(ScanTest, ScanLine47_Octant0)
 	TestScanLine(1, 4.5, 3, 6.5, {{.left_x = 1, .y = 5, .x_delta = 1}, {.left_x = 2, .y = 6, .x_delta = 1}});
 }
 
-TEST_F(ScanTest, ScanLine48_Octant8)
+TEST_F(ScanTest, ScanLine48_Octant7)
 {
 	TestScanLine(2.5, 4, 4.5, 2, {{.left_x = 2, .y = 4, .x_delta = 1}, {.left_x = 3, .y = 3, .x_delta = 1}});
 }
@@ -522,7 +522,7 @@ TEST_F(ScanTest, ScanLine55_Right)
 	TestScanLine(8, 1.5, 10, 1.5, {{.left_x = 8, .y = 1, .x_delta = 2}});
 }
 
-TEST_F(ScanTest, ScanLine56_Octant8)
+TEST_F(ScanTest, ScanLine56_Octant7)
 {
 	TestScanLine(10, 1.5, 11, 0.5, {{.left_x = 10, .y = 1, .x_delta = 1}});
 }

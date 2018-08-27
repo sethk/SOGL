@@ -575,13 +575,12 @@ raster_scan_steep_line(struct drawable *d,
 }
 
 static void
-raster_scan_octant0_line(struct drawable *d,
-                         const struct window_vertex *v1, const struct window_vertex *v2,
-                         scalar_t x_delta, scalar_t y_delta)
+raster_scan_gradual_right_line(struct drawable *d,
+                               const struct window_vertex *v1, const struct window_vertex *v2,
+                               scalar_t x_delta, scalar_t y_delta)
 {
 	assert(x_delta > 0);
-	assert(y_delta > 0);
-	assert(x_delta >= y_delta);
+	assert(x_delta >= fabs(y_delta));
 
 	const raster_loc_t x1 = (raster_loc_t)ceil(v1->coord.x) - 1;
 	const raster_loc_t y1 = (raster_loc_t)floor(v1->coord.y);
@@ -609,6 +608,9 @@ raster_scan_octant0_line(struct drawable *d,
 		start_t = 0;
 		fill_start = true;
 	}
+	raster_loc_t start_x = x1;
+	if (!fill_start)
+		++start_x;
 
 	scalar_t x2_frac = v2->coord.x - x2;
 	raster_loc_t end_x = x2;
@@ -619,9 +621,9 @@ raster_scan_octant0_line(struct drawable *d,
 			++end_x;
 	}
 
-	raster_loc_t next_x = x1;
-	if (next_x < end_x)
+	if (start_x < end_x)
 	{
+		raster_loc_t next_x = start_x;
 		scalar_t next_t;
 		raster_loc_t next_y;
 		if (fill_start)
@@ -631,7 +633,6 @@ raster_scan_octant0_line(struct drawable *d,
 		}
 		else
 		{
-			++next_x;
 			next_t = ((next_x + 0.5) - v1->coord.x) / x_delta;
 			assert(next_t >= 0 && next_t <= 1.0);
 			next_y = (raster_loc_t) floor(v1->coord.y + next_t * y_delta);
@@ -832,9 +833,9 @@ raster_scan_octant3_line(struct drawable *d,
 	assert(y_delta > 0);
 	assert(-x_delta >= y_delta);
 
-	const raster_loc_t x1 = (raster_loc_t)floor(v1->coord.x);
+	const raster_loc_t x1 = (raster_loc_t)ceil(v1->coord.x) - 1;
 	const raster_loc_t y1 = (raster_loc_t)floor(v1->coord.y);
-	const raster_loc_t x2 = (raster_loc_t)floor(v2->coord.x);
+	const raster_loc_t x2 = (raster_loc_t)ceil(v2->coord.x) - 1;
 	const raster_loc_t y2 = (raster_loc_t)floor(v2->coord.y);
 
 	scalar_t x1_frac = v1->coord.x - x1;
@@ -858,60 +859,60 @@ raster_scan_octant3_line(struct drawable *d,
 		start_t = 0;
 		fill_start = true;
 	}
+	raster_loc_t start_x = x1;
+	if (!fill_start)
+		--start_x;
 
 	scalar_t x2_frac = v2->coord.x - x2;
 	raster_loc_t end_x = x2;
 	if (x2_frac < 0.5)
 	{
 		scalar_t y2_frac = v2->coord.y - y2;
-		if (raster_point_part(x2_frac, y2_frac) == DIAMOND)
-			++end_x;
+		if (raster_point_part(x2_frac, y2_frac) != DIAMOND)
+			--end_x;
 	}
-	else
-		++end_x;
 
-	raster_loc_t next_x = x1;
-	if (next_x > end_x)
+	if (start_x > end_x)
 	{
-		scalar_t next_t;
-		raster_loc_t next_y;
+		raster_loc_t prev_x = start_x;
+		scalar_t prev_t;
+		raster_loc_t prev_y;
 		if (fill_start)
 		{
-			next_t = start_t;
-			next_y = y1;
+			prev_t = start_t;
+			prev_y = y1;
 		}
 		else
 		{
-			--next_x;
-			next_t = ((next_x + 0.5) - v1->coord.x) / x_delta;
-			assert(next_t >= 0 && next_t <= 1.0);
-			next_y = (raster_loc_t) floor(v1->coord.y + next_t * y_delta);
+			prev_t = ((prev_x + 0.5) - v1->coord.x) / x_delta;
+			assert(prev_t >= 0 && prev_t <= 1.0);
+			prev_y = (raster_loc_t) floor(v1->coord.y + prev_t * y_delta);
 		}
 
 		scalar_t depth_delta = v2->coord.z - v1->coord.z;
 		struct vector4 color_delta = vector4_sub(v2->color, v1->color);
 
-		while (next_x != end_x)
+		while (prev_x != end_x)
 		{
-			raster_loc_t scan_x1 = next_x;
-			scalar_t scan_t1 = next_t;
-			raster_loc_t scan_y = next_y;
+			raster_loc_t scan_x1 = prev_x;
+			scalar_t scan_t1 = prev_t;
+			raster_loc_t scan_y = prev_y;
 
 			raster_loc_t scan_x2;
 			scalar_t scan_t2;
 			do
 			{
-				scan_x2 = next_x;
-				scan_t2 = next_t;
+				scan_x2 = prev_x;
+				scan_t2 = prev_t;
 
-				--next_x;
-				if (next_x == end_x)
+				--prev_x;
+				if (prev_x == end_x)
 					break;
 
-				next_t = ((next_x + 0.5) - v1->coord.x) / x_delta;
-				assert(next_t >= 0 && next_t <= 1.0);
-				next_y = floor(v1->coord.y + next_t * y_delta);
-			} while (next_y == scan_y);
+				prev_t = ((prev_x + 0.5) - v1->coord.x) / x_delta;
+				assert(prev_t >= 0 && prev_t <= 1.0);
+				prev_y = floor(v1->coord.y + prev_t * y_delta);
+			} while (prev_y == scan_y);
 
 			raster_depth_t left_depth = v1->coord.z + scan_t2 * depth_delta;
 			raster_depth_t right_depth = v1->coord.z + scan_t1 * depth_delta;
@@ -934,12 +935,17 @@ raster_scan_line(struct drawable *d, const struct window_vertex *v1, const struc
 		if (y_delta > 0)
 		{
 			if (x_delta >= y_delta)
-				raster_scan_octant0_line(d, v1, v2, x_delta, y_delta);
+				raster_scan_gradual_right_line(d, v1, v2, x_delta, y_delta);
 			else
 				raster_scan_octant1_line(d, v1, v2, x_delta, y_delta);
 		}
 		else if (y_delta < 0)
-			;
+		{
+			if (x_delta >= -y_delta)
+				raster_scan_gradual_right_line(d, v1, v2, x_delta, y_delta);
+			else
+				;
+		}
 		else
 			raster_scan_right_line(d, v1, v2, x_delta);
 	}
