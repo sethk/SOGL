@@ -754,13 +754,12 @@ raster_scan_steep_up_line(struct drawable *d,
 }
 
 static void
-raster_scan_octant3_line(struct drawable *d,
-                         const struct window_vertex *v1, const struct window_vertex *v2,
-                         scalar_t x_delta, scalar_t y_delta)
+raster_scan_gradual_left_line(struct drawable *d,
+                              const struct window_vertex *v1, const struct window_vertex *v2,
+                              scalar_t x_delta, scalar_t y_delta)
 {
 	assert(x_delta < 0);
-	assert(y_delta > 0);
-	assert(-x_delta >= y_delta);
+	assert(-x_delta >= fabs(y_delta));
 
 	const raster_loc_t x1 = (raster_loc_t)ceil(v1->coord.x) - 1;
 	const raster_loc_t y1 = (raster_loc_t)floor(v1->coord.y);
@@ -854,6 +853,13 @@ raster_scan_octant3_line(struct drawable *d,
 	}
 }
 
+static void
+raster_scan_steep_down_line(struct drawable *d,
+                            const struct window_vertex *v1, const struct window_vertex *v2,
+                            scalar_t x_delta, scalar_t y_delta)
+{
+}
+
 void
 raster_scan_line(struct drawable *d, const struct window_vertex *v1, const struct window_vertex *v2)
 {
@@ -873,7 +879,7 @@ raster_scan_line(struct drawable *d, const struct window_vertex *v1, const struc
 			if (x_delta >= -y_delta)
 				raster_scan_gradual_right_line(d, v1, v2, x_delta, y_delta);
 			else
-				;
+				raster_scan_steep_down_line(d, v1, v2, x_delta, y_delta);
 		}
 		else
 			raster_scan_right_line(d, v1, v2, x_delta);
@@ -883,12 +889,17 @@ raster_scan_line(struct drawable *d, const struct window_vertex *v1, const struc
 		if (y_delta > 0)
 		{
 			if (-x_delta >= y_delta)
-				raster_scan_octant3_line(d, v1, v2, x_delta, y_delta);
+				raster_scan_gradual_left_line(d, v1, v2, x_delta, y_delta);
 			else
 				raster_scan_steep_up_line(d, v1, v2, x_delta, y_delta);
 		}
 		else if (y_delta < 0)
-			;
+		{
+			if (-x_delta >= -y_delta)
+				raster_scan_gradual_left_line(d, v1, v2, x_delta, y_delta);
+			else
+				raster_scan_steep_down_line(d, v1, v2, x_delta, y_delta);
+		}
 		else
 			raster_scan_left_line(d, v1, v2, x_delta);
 	}

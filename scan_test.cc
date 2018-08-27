@@ -385,7 +385,7 @@ TEST_F(ScanTest, ScanLine30_Down)
 
 TEST_F(ScanTest, ScanLine31_Octant4)
 {
-	TestScanLine(13, 10.5, 12.5, 10, {{.left_x = 12, .y = 10, .x_delta = 1}});
+	TestScanLine(12.5, 10, 13, 10.5, {{.left_x = 12, .y = 10, .x_delta = 1}});
 }
 
 TEST_F(ScanTest, ScanLine32_Octant5)
