@@ -99,16 +99,18 @@ raster_pixel(struct drawable *d, struct draw_options options, struct raster_vert
 void
 raster_scan_point(struct drawable *d, const struct window_vertex *vertex)
 {
-	if (vertex->coord.x > 0 && vertex->coord.y < d->view_height)
-	{
-		d->spans[d->num_spans].y = (raster_loc_t)floor(vertex->coord.y);
-		d->spans[d->num_spans].left_x = (raster_loc_t)ceil(vertex->coord.x - 1.0);
-		d->spans[d->num_spans].left_depth = vertex->coord.z;
-		d->spans[d->num_spans].x_delta = 1;
-		d->spans[d->num_spans].left_color = vertex->color;
-		d->spans[d->num_spans].color_delta = (struct vector4){.v = {0, 0, 0, 0}};
-		++d->num_spans;
-	}
+#if DIRECTX_POINT_RASTER
+	d->spans[d->num_spans].y = (raster_loc_t)floor(vertex->coord.y);
+	d->spans[d->num_spans].left_x = (raster_loc_t)ceil(vertex->coord.x - 1.0);
+#else
+	d->spans[d->num_spans].y = (raster_loc_t)vertex->coord.y;
+	d->spans[d->num_spans].left_x = (raster_loc_t)vertex->coord.x;
+#endif // DIRECTX_POINT_RASTER
+	d->spans[d->num_spans].left_depth = vertex->coord.z;
+	d->spans[d->num_spans].x_delta = 1;
+	d->spans[d->num_spans].left_color = vertex->color;
+	d->spans[d->num_spans].color_delta = (struct vector4){.v = {0, 0, 0, 0}};
+	++d->num_spans;
 }
 
 enum point_part
@@ -204,9 +206,8 @@ raster_scan_horiz_line(struct drawable *d,
                        scalar_t right_t)
 {
 	assert(left_x < right_x);
-	assert(left_t <= right_t);
-	assert(left_t >= 0);
-	assert(right_t <= 1);
+	assert(left_t >= 0 && left_t <= 1);
+	assert(right_t >= 0 && right_t <= 1);
 	raster_depth_t depth_delta = v2->coord.z - v1->coord.z;
 	struct vector4 color_delta = vector4_sub(v2->color, v1->color);
 
@@ -327,7 +328,7 @@ raster_scan_vertical_line(struct drawable *d,
 
 	for (raster_loc_t y = start_y; y != end_y; y+= y_step)
 	{
-		scalar_t t = (y - v1->coord.y) / y_delta;
+		scalar_t t = ((y + 0.5) - v1->coord.y) / y_delta;
 		assert(t >= 0 && t <= 1.0);
 		raster_emit_span_para(d, y, x, 1, t, 0, v1->coord.z, depth_delta, v1->color, color_delta);
 	}
@@ -680,9 +681,8 @@ raster_scan_steep_up_line(struct drawable *d,
                           const struct window_vertex *v1, const struct window_vertex *v2,
                           scalar_t x_delta, scalar_t y_delta)
 {
-	assert(x_delta < 0);
 	assert(y_delta > 0);
-	assert(-x_delta < y_delta);
+	assert(fabs(x_delta) < y_delta);
 
 	const raster_loc_t x1 = (raster_loc_t)ceil(v1->coord.x) - 1;
 	const raster_loc_t y1 = (raster_loc_t)floor(v1->coord.y);

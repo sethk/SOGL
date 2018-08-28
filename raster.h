@@ -26,6 +26,9 @@ typedef int raster_dist_t;
 
 typedef float raster_depth_t;
 
+// Rasterize points using DirectX rules or OpenGL
+#define DIRECTX_POINT_RASTER 0
+
 struct window_vertex
 {
 	struct vector3 coord;
