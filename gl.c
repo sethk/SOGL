@@ -14,7 +14,7 @@
 
 #define number_of(a) (sizeof(a) / sizeof(*(a)))
 
-#define SHOW_DEBUG_WIN 0
+#define SHOW_DEBUG_WIN 1
 #define DEBUG_WIN (-5)
 
 /* Render */
@@ -514,11 +514,13 @@ static struct lighting lighting =
 };
 
 static const GLuint max_attrib_depth = 3;
-static struct
+static struct saved_attrib
 {
 	GLbitfield bits;
-	GLboolean lighting_enabled;
 	GLboolean test_depth;
+	GLboolean lighting_enabled;
+	GLboolean lights_enabled[max_lights];
+	GLboolean cull_faces;
 } saved_attrib_stack[max_attrib_depth];
 static GLuint saved_attrib_depth = 0;
 
@@ -1094,15 +1096,20 @@ static void
 gl_push_attrib(GLIContext ctx, GLbitfield mask)
 {
 	assert(saved_attrib_depth < number_of(saved_attrib_stack));
+	struct saved_attrib *attrib = &(saved_attrib_stack[saved_attrib_depth]);
+	attrib->bits = 0;
     if (mask & GL_ENABLE_BIT)
 	{
-		saved_attrib_stack[saved_attrib_depth].lighting_enabled = lighting_enabled;
-		saved_attrib_stack[saved_attrib_depth].test_depth = draw_options.test_depth;
+		attrib->test_depth = draw_options.test_depth;
+		attrib->lighting_enabled = lighting_enabled;
+		for (u_int light = 0; light < max_lights; ++light)
+			attrib->lights_enabled[light] = lighting.lights[light].enabled;
+		attrib->cull_faces = draw_options.cull_faces;
+		attrib->bits|= GL_ENABLE_BIT;
 	}
-    saved_attrib_stack[saved_attrib_depth].bits = mask;
 	++saved_attrib_depth;
-	fprintf(stderr, "TODO: push_attrib() 0x%x\n", mask);
-    //opengl_disp.push_attrib(opengl_rend, mask);
+	if (mask & ~attrib->bits)
+		fprintf(stderr, "TODO: push_attrib(0x%x)\n", mask & ~attrib->bits);
 }
 
 static void
@@ -1110,13 +1117,18 @@ gl_pop_attrib(GLIContext ctx)
 {
 	assert(saved_attrib_depth > 0);
 	--saved_attrib_depth;
-	if (saved_attrib_stack[saved_attrib_depth].bits & GL_ENABLE_BIT)
+	struct saved_attrib *attrib = &(saved_attrib_stack[saved_attrib_depth]);
+	if (attrib->bits & GL_ENABLE_BIT)
 	{
-		lighting_enabled = saved_attrib_stack[saved_attrib_depth].lighting_enabled;
-		draw_options.test_depth = saved_attrib_stack[saved_attrib_depth].test_depth;
+		draw_options.test_depth = attrib->test_depth;
+		lighting_enabled = attrib->lighting_enabled;
+		for (u_int light = 0; light < max_lights; ++light)
+			lighting.lights[light].enabled = attrib->lights_enabled[light];
+		draw_options.cull_faces = attrib->cull_faces;
 	}
-	fprintf(stderr, "TODO: pop_attrib()\n");
-	//opengl_disp.pop_attrib(opengl_rend);
+	attrib->bits&= ~GL_ENABLE_BIT;
+	if (attrib->bits)
+		fprintf(stderr, "TODO: pop_attrib(0x%x)\n", attrib->bits);
 }
 
 static void
