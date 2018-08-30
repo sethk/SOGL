@@ -11,6 +11,7 @@
 #include "draw.h"
 #include "window.h"
 #include "raster.h"
+#include "clip.h"
 #include "matrix.h"
 
 #define FLIPPED_Y 0
@@ -81,14 +82,6 @@ draw_clear(struct drawable *d, bool color, const struct vector4 clear_color, boo
 	}
 }
 
-static bool
-draw_clip_point(const struct vector4 *coord)
-{
-	return (coord->x >= -coord->w && coord->x <= coord->w &&
-			coord->y >= -coord->w && coord->y <= coord->w &&
-			coord->z >= -coord->w && coord->z <= coord->w);
-}
-
 static struct window_vertex
 draw_map_vertex(struct drawable *d, const struct device_vertex *vertex)
 {
@@ -99,21 +92,15 @@ draw_map_vertex(struct drawable *d, const struct device_vertex *vertex)
 }
 
 static void
-draw_point(struct drawable *d, struct draw_options options, struct device_vertex vertex)
+draw_point(struct drawable *d, struct draw_options options, const struct device_vertex *vertex)
 {
-	if (draw_clip_point(&(vertex.coord)))
+	if (clip_point(vertex))
 	{
 		d->num_spans = 0;
-		struct window_vertex win_vert = draw_map_vertex(d, &vertex);
+		struct window_vertex win_vert = draw_map_vertex(d, vertex);
 		raster_scan_point(d, &win_vert);
 		raster_fill_spans(d, options);
 	}
-}
-
-static bool
-draw_clip_line(struct device_vertex *p1, struct device_vertex *p2)
-{
-	return (draw_clip_point(&(p1->coord)) && draw_clip_point(&(p2->coord)));
 }
 
 static void
@@ -122,7 +109,7 @@ draw_line(struct drawable *d,
           struct device_vertex p1,
           struct device_vertex p2)
 {
-	if (!draw_clip_line(&p1, &p2))
+	if (!clip_line(&p1, &p2))
 		return;
 
 	struct window_vertex win_vert1 = draw_map_vertex(d, &p1);
@@ -139,9 +126,9 @@ draw_triangle(struct drawable *d,
               const struct device_vertex vertices[3],
               bool front)
 {
-	if (!draw_clip_point(&(vertices[0].coord)) ||
-			!draw_clip_point(&(vertices[1].coord)) ||
-			!draw_clip_point(&(vertices[2].coord)))
+	if (!clip_point(&(vertices[0])) ||
+			!clip_point(&(vertices[1])) ||
+			!clip_point(&(vertices[2])))
 		return;
 
 	struct window_vertex win_verts[3];
@@ -192,7 +179,7 @@ draw_polygon(struct drawable *d, struct draw_options options, const struct devic
 	{
 		case GL_POINT:
 			for (GLuint i = 0; i < num_verts; ++i)
-				draw_point(d, options, vertices[i]);
+				draw_point(d, options, &(vertices[i]));
 			break;
 
 		case GL_LINE:
@@ -302,7 +289,7 @@ draw_primitive(struct drawable *d,
 	switch (num_verts)
 	{
 		case 1:
-			draw_point(d, options, vertices[0]);
+			draw_point(d, options, &(vertices[0]));
 			break;
 		case 2:
 			draw_line(d, options, vertices[0], vertices[1]);

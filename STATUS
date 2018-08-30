@@ -3,7 +3,7 @@
 cube                Correct
 flat                Correct
 material            Correct
-movelight           Correct (without teapot)
+movelight           Correct (without teapot or text)
 n64                 Correct
 scene               Correct
 sphere              Correct
