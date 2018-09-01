@@ -48,6 +48,10 @@ draw_reshape(struct drawable *d, u_int width, u_int height)
 void
 draw_set_view(struct drawable *d, u_int x, u_int y, u_int width, u_int height)
 {
+	assert(x < (u_int)d->window_width);
+	assert(y < (u_int)d->window_height);
+	assert(x + width <= (u_int)d->window_width);
+	assert(y + height <= (u_int)d->window_height);
 	d->view_x = x;
 #if FLIPPED_Y
 	d->view_y = d->window_height - (height + y);

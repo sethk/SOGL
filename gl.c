@@ -1482,7 +1482,7 @@ void (*reshape_func)(int width, int height);
 void (*idle_func)(void);
 
 static void
-reshape(int width, int height)
+glut_reshape(int width, int height)
 {
 	draw_reshape(drawable, width, height);
 
@@ -1550,12 +1550,13 @@ debug_key(unsigned char key, int x, int y)
 }
 
 static void
-debug_idle(void)
+glut_idle(void)
 {
 	if (openGLUTGetWindow() == debug_win)
 		openGLUTSetWindow(glut_main_win);
 
-	idle_func();
+	if (idle_func)
+		idle_func();
 }
 
 void
@@ -1565,7 +1566,6 @@ glutInit(int *argcp, char **argv)
 
 	openGLUTInit(argcp, argv);
 
-	//openGLUTReshapeFunc(reshape);
 	//openGLUTInitWindowPosition(20, 20);
 	glutInitWindowPosition(20, 20);
 	glutInitWindowSize(300, 300);
@@ -1620,6 +1620,8 @@ glutCreateWindow(const char *title)
 {
 	assert(glut_main_win == -1);
 	glut_main_win = openGLUTCreateWindow(title);
+	openGLUTReshapeFunc(glut_reshape);
+	openGLUTIdleFunc(glut_idle);
 	CGLContextObj context = CGLGetCurrentContext();
 	main_window = window_create_cgl(context);
 	//main_win->width = init_win_size.width;
@@ -1648,14 +1650,12 @@ void
 glutReshapeFunc(void (*func)(int width, int height))
 {
 	reshape_func = func;
-	openGLUTReshapeFunc(reshape);
 }
 
 void
 glutIdleFunc(void (*fp)(void))
 {
 	idle_func = fp;
-	openGLUTIdleFunc(debug_idle);
 }
 
 void
