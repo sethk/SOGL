@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 11)
 add_compile_options(-mmacos-version-min=10.13)
 add_compile_options(-Werror -Wall -Wformat -Wextra -Wno-deprecated -Wno-unused-parameter -Wno-unused-function -Wno-missing-field-initializers)
 set(CMAKE_C_FLAGS_DEBUG "-O0 -fno-inline -g")
+# -fsanitize=address
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIRS})
@@ -47,7 +48,7 @@ add_executable(matrix_test matrix_test.c vector.c matrix.c)
 add_executable(scan_test scan_test.cc ${DRAW_SOURCES} vector.c matrix.c window_null.c)
 target_link_libraries(scan_test gtest_main)
 add_test(NAME scan_test COMMAND scan_test)
-add_executable(clip_test clip_test.cc ${CLIP_SOURCES} vector.c)
+add_executable(clip_test clip_test.cc clip.c ${CLIP_SOURCES} vector.c)
 target_link_libraries(clip_test gtest_main)
 
 # Download and unpack googletest at configure time

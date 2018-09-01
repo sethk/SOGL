@@ -61,13 +61,41 @@ protected:
 		v1.coord.xyz = c1;
 		struct device_vertex v2 = {.coord.w = 1, .color.v = {0, 0, 0, 0}};
 		v2.coord.xyz = c2;
-		bool visible = clip_line(&v1, &v2);
+		bool visible = clip_line(&v1, &v2, &v1, &v2);
 		ASSERT_EQ(visible, clip_visible);
 		if (visible && clip_visible)
 		{
 			ASSERT_EQ(v1.coord.xyz, clip_c1);
 			ASSERT_EQ(v2.coord.xyz, clip_c2);
 		}
+	}
+
+	void
+	TestClipTriangle(const struct vector3 &c1, const struct vector3 &c2, const struct vector3 &c3,
+			initializer_list<const struct vector3> expect_clip_coords)
+	{
+		struct device_vertex verts[3] =
+				{
+						{.coord.w = 1, .color.v = {0, 0, 0, 0}},
+						{.coord.w = 1, .color.v = {0, 0, 0, 0}},
+						{.coord.w = 1, .color.v = {0, 0, 0, 0}}
+				};
+		verts[0].coord.xyz = c1;
+		verts[1].coord.xyz = c2;
+		verts[2].coord.xyz = c3;
+		struct device_vertex clipped_verts[6];
+		u_int num_clip_verts = clip_polygon(verts, 3, clipped_verts);
+		u_int expect_index = 0;
+		for (const struct vector3 &expect_clip : expect_clip_coords)
+		{
+			ASSERT_GT(num_clip_verts, expect_index);
+			struct vector4 expect_clip_coord4;
+			expect_clip_coord4.xyz = expect_clip;
+			expect_clip_coord4.w = 1;
+			ASSERT_EQ(clipped_verts[expect_index].coord, expect_clip_coord4);
+			++expect_index;
+		}
+		ASSERT_EQ(num_clip_verts, expect_clip_coords.size());
 	}
 };
 
@@ -82,6 +110,7 @@ static const struct vector3 Top1 = {.v = {0.5, 1.5, 0}},
 		Inside1 = {.v = {-0.5, 0.5, 0}},
 		Inside2 = {.v = {0.5, -0.5, 0}},
 		TopEdge1 = {.v = {0, 1, 0}},
+		TopEdge2 = {.v = {0.5, 1, 0}},
 		TopFrontEdge1 = {.v = {-0.2, 1, 1}},
 		LeftEdge1 = {.v = {-1, 0.25, 0}},
 		LeftEdge2 = {.v = {-1, 1 / 3.0f, 0}},
@@ -92,17 +121,26 @@ static const struct vector3 Top1 = {.v = {0.5, 1.5, 0}},
 		RightEdge3 = {.v = {1, 0, 0}},
 		TopRight1 = {.v = {2.5, 1.5, 0}};
 
-TEST_F(ClipTest, TestLines)
+TEST_F(ClipTest, TestLines_Inside_Inside)
 {
 	TestClipLine(Inside1, Inside2, true, Inside1, Inside2);
 	TestClipLine(Inside2, Inside1, true, Inside2, Inside1);
+}
 
+TEST_F(ClipTest, TestLines_Left_Inside)
+{
 	TestClipLine(Left1, Inside2, true, LeftEdge1, Inside2);
 	TestClipLine(Inside2, Left1, true, Inside2, LeftEdge1);
+}
 
+TEST_F(ClipTest, TestLines_Left1_Left2)
+{
 	TestClipLine(Left1, Left2, false, Left1, Left2);
 	TestClipLine(Left2, Left1, false, Left2, Left1);
+}
 
+TEST_F(ClipTest, TestLines)
+{
 	TestClipLine(Inside1, Right1, true, Inside1, RightEdge1);
 	TestClipLine(Right1, Inside1, true, RightEdge1, Inside1);
 
@@ -138,4 +176,9 @@ TEST_F(ClipTest, TestLines_TopFront_BottomBack)
 {
 	TestClipLine(TopFront1, BottomBack1, true, TopFrontEdge1, BottomBackEdge1);
 	TestClipLine(BottomBack1, TopFront1, true, BottomBackEdge1, TopFrontEdge1);
+}
+
+TEST_F(ClipTest, TestTriangle_Upper)
+{
+	TestClipTriangle(Inside1, Top1, Inside2, {Inside1, TopEdge1, TopEdge2, Inside2});
 }

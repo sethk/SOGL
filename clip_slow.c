@@ -3,82 +3,169 @@
 //
 
 #include <assert.h>
+#include <math.h>
+#include <strings.h>
 #include "clip.h"
 #include "draw.h"
 #include "vector.h"
 
-static bool
-clip_unit_plane(struct vector3 *c1, const struct vector3 *c2, const struct vector3 *pnorm, scalar_t *tp)
-{
-	struct vector3 pc1 = vector3_sub(*pnorm, *c1);
-	scalar_t pc1_dot_pnorm = vector3_dot(pc1, *pnorm);
-	if (pc1_dot_pnorm < 0)
-	{
-		struct vector3 c1_c2 = vector3_sub(*c2, *c1);
-		scalar_t v_dot_n = vector3_dot(c1_c2, *pnorm);
-		if (v_dot_n >= 0)
-			// c1 is outside and line points away from or parallel to plane
-			return false;
+#pragma GCC diagnostic warning "-Wunused-variable"
 
-		scalar_t t = pc1_dot_pnorm / v_dot_n;
-		if (t < 1)
+struct line_seg
+{
+	struct vector3 start;
+	struct vector3 dir;
+	scalar_t start_t, end_t;
+};
+
+static const struct vector3 clip_planes[] =
 		{
-			*tp = t;
-			*c1 = vector3_lerp(*c1, *c2, *tp);
-		}
-		else
-			// Both c1 and c2 are outside; should have been trivially rejected
-			return false;
-	}
-	return true;
+				{.v = {0, -1, 0}},
+				{.v = {0, 1, 0}},
+				{.v = {-1, 0, 0}},
+				{.v = {1, 0, 0}},
+				{.v = {0, 0, -1}},
+				{.v = {0, 0, 1}}
+		};
+
+static struct line_seg
+clip_make_line_seg(const struct vector3 *start, const struct vector3 *end)
+{
+	return (struct line_seg){.start = *start, .dir = vector3_sub(*end, *start), .start_t = 0, .end_t = 1};
 }
 
-bool
-clip_line(struct device_vertex *p1, struct device_vertex *p2)
+static void
+clip_line_seg_unit_plane(struct line_seg *seg, const struct vector3 *pnorm)
 {
-	struct vector3 c1 = vector4_project(p1->coord);
-	struct vector3 c2 = vector4_project(p2->coord);
-	scalar_t t1 = 0, t2 = 0;
+	scalar_t norm_dot_dir = vector3_dot(*pnorm, seg->dir);
+	if (norm_dot_dir != 0) // Ignore lines parallel to edge for now
+	{
+		struct vector3 edge_to_start = vector3_sub(seg->start, *pnorm);
+		scalar_t num = vector3_dot(*pnorm, edge_to_start);
+		scalar_t denom = -norm_dot_dir;
+		scalar_t t = num / denom;
+		if (denom > 0)
+			seg->start_t = fmax(seg->start_t, t);
+		else
+			seg->end_t = fmin(seg->end_t, t);
+	}
+}
 
-	static const struct vector3 top_plane = {.v = {0, 1, 0}},
-			left_plane = {.v = {-1, 0, 0}},
-			bottom_plane = {.v = {0, -1, 0}},
-			right_plane = {.v = {1, 0, 0}},
-			back_plane = {.v = {0, 0, -1}},
-			front_plane = {.v = {0, 0, 1}};
+static bool
+clip_line_seg_unit_cube(struct line_seg *seg)
+{
+	for (u_int plane_index = 0; plane_index < sizeof(clip_planes) / sizeof(clip_planes[0]); ++plane_index)
+		clip_line_seg_unit_plane(seg, &(clip_planes[plane_index]));
 
-	if (!clip_unit_plane(&c1, &c2, &left_plane, &t1) ||
-			!clip_unit_plane(&c2, &c1, &left_plane, &t2) ||
-			!clip_unit_plane(&c1, &c2, &right_plane, &t1) ||
-			!clip_unit_plane(&c2, &c1, &right_plane, &t2) ||
-			!clip_unit_plane(&c1, &c2, &top_plane, &t1) ||
-			!clip_unit_plane(&c2, &c1, &top_plane, &t2) ||
-			!clip_unit_plane(&c1, &c2, &bottom_plane, &t1) ||
-			!clip_unit_plane(&c2, &c1, &bottom_plane, &t2) ||
-			!clip_unit_plane(&c1, &c2, &back_plane, &t1) ||
-			!clip_unit_plane(&c2, &c1, &back_plane, &t2) ||
-			!clip_unit_plane(&c1, &c2, &front_plane, &t1) ||
-			!clip_unit_plane(&c2, &c1, &front_plane, &t2))
+	if (seg->start_t > seg->end_t)
 		return false;
 
-	if (t1 != 0)
-	{
-		p1->coord.x = c1.x;
-		p1->coord.y = c1.y;
-		p1->coord.z = c1.z;
-		p1->coord.w = 1;
-		p1->color = vector4_lerp(p1->color, p2->color, t1);
-	}
+	return true;
+}
 
-	if (t2 != 0)
+// Cyrus-Beck Parametric Line Clip: unoptimized version
+bool
+clip_line(const struct device_vertex *p1, const struct device_vertex *p2,
+          struct device_vertex *clip_p1, struct device_vertex *clip_p2)
+{
+	struct vector3 start = vector4_project(p1->coord);
+	struct vector3 end = vector4_project(p2->coord);
+	struct line_seg seg = clip_make_line_seg(&start, &end);
+	if (seg.dir.x == 0 && seg.dir.y == 0)
+		// Degenerate line; clip as a point
+		return clip_point(p1);
+
+	if (!clip_line_seg_unit_cube(&seg))
+		return false;
+
+	if (seg.start_t < 1)
 	{
-		p2->coord.x = c2.x;
-		p2->coord.y = c2.y;
-		p2->coord.z = c2.z;
-		p2->coord.w = 1;
-		p2->color = vector4_lerp(p2->color, p1->color, t2);
+		clip_p1->coord.xyz = vector3_lerp(start, end, seg.start_t);
+		clip_p1->coord.w = 1;
+		clip_p1->color = vector4_lerp(p1->color, p2->color, seg.start_t);
 	}
+	else
+		*clip_p1 = *p1;
+
+	if (seg.end_t > 0)
+	{
+		clip_p2->coord.xyz = vector3_lerp(start, end, seg.end_t);
+		clip_p2->coord.w = 1;
+		clip_p2->color = vector4_lerp(p1->color, p2->color, seg.end_t);
+	}
+	else
+		*clip_p2 = *p2;
 
 	return true;
 }
 
+static bool
+clip_vertex_unit_plane(const struct device_vertex *v, const struct vector3 *pnorm)
+{
+	struct vector3 p = vector4_project(v->coord);
+	struct vector3 edge_to_p = vector3_sub(p, *pnorm);
+	scalar_t num = vector3_dot(*pnorm, edge_to_p);
+	return (num <= 0);
+}
+
+static struct device_vertex
+clip_line_unit_plane(const struct device_vertex *v1, const struct device_vertex *v2, const struct vector3 *pnorm)
+{
+	struct vector3 p1 = vector4_project(v1->coord);
+	struct vector3 p2 = vector4_project(v2->coord);
+	struct vector3 dir = vector3_sub(p2, p1);
+	scalar_t norm_dot_dir = vector3_dot(*pnorm, dir);
+	assert(norm_dot_dir != 0);
+	struct vector3 edge_to_p1 = vector3_sub(p1, *pnorm);
+	scalar_t num = vector3_dot(*pnorm, edge_to_p1);
+	scalar_t denom = -norm_dot_dir;
+	scalar_t t = num / denom;
+	return clip_vertex_lerp(v1, v2, t);
+}
+
+static u_int
+clip_polygon_unit_plane(const struct device_vertex *verts, u_int num_verts,
+                        const struct vector3 *pnorm,
+                        struct device_vertex *clipped_verts)
+{
+	u_int num_clipped_verts = 0;
+	const struct device_vertex *start_v = &(verts[num_verts - 1]);
+	for (u_int vert_index = 0; vert_index < num_verts; ++vert_index)
+	{
+		const struct device_vertex *end_v = &(verts[vert_index]);
+		if (clip_vertex_unit_plane(end_v, pnorm))
+		{
+			if (clip_vertex_unit_plane(start_v, pnorm))
+				clipped_verts[num_clipped_verts++] = *end_v;
+			else
+			{
+				clipped_verts[num_clipped_verts++] = clip_line_unit_plane(start_v, end_v, pnorm);
+				clipped_verts[num_clipped_verts++] = *end_v;
+			}
+		}
+		else if (clip_vertex_unit_plane(start_v, pnorm))
+			clipped_verts[num_clipped_verts++] = clip_line_unit_plane(start_v, end_v, pnorm);
+
+		start_v = end_v;
+	}
+	return num_clipped_verts;
+}
+
+// Sutherland-Hodgeman Polygon Clip, unoptimized version
+u_int
+clip_polygon(const struct device_vertex *verts, u_int num_verts, struct device_vertex *clipped_verts)
+{
+	bcopy(verts, clipped_verts, sizeof(*verts) * num_verts);
+	u_int num_clipped_verts = num_verts;
+
+	for (u_int plane_index = 0; plane_index < sizeof(clip_planes) / sizeof(clip_planes[0]); ++plane_index)
+	{
+		struct device_vertex temp_verts[MAX_PRIMITIVE_VERTICES];
+		num_clipped_verts = clip_polygon_unit_plane(clipped_verts, num_clipped_verts,
+		                                            &(clip_planes[plane_index]),
+		                                            temp_verts);
+		bcopy(temp_verts, clipped_verts, sizeof(temp_verts[0]) * num_clipped_verts);
+	}
+
+	return num_clipped_verts;
+}

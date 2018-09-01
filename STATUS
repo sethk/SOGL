@@ -7,11 +7,11 @@ movelight           Correct (without teapot or text)
 n64                 Correct
 scene               Correct
 sphere              Correct
+prim                Correct
 
 === Almost correct
-glutplane           Slight mangling of colors
-simple              Triangle has notches
-prim                Missing lines; points out of alignment
+glutplane           No flat shade model and no polygon clipping
+simple              Triangle has bumps
 
 === Incorrect
 overlap             Fails overlap test

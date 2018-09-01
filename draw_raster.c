@@ -92,26 +92,20 @@ draw_map_vertex(struct drawable *d, const struct device_vertex *vertex)
 }
 
 static void
-draw_point(struct drawable *d, struct draw_options options, const struct device_vertex *vertex)
+draw_clipped_point(struct drawable *d, struct draw_options options, const struct device_vertex *vertex)
 {
-	if (clip_point(vertex))
-	{
-		d->num_spans = 0;
-		struct window_vertex win_vert = draw_map_vertex(d, vertex);
-		raster_scan_point(d, &win_vert);
-		raster_fill_spans(d, options);
-	}
+	d->num_spans = 0;
+	struct window_vertex win_vert = draw_map_vertex(d, vertex);
+	raster_scan_point(d, &win_vert);
+	raster_fill_spans(d, options);
 }
 
 static void
-draw_line(struct drawable *d,
-          struct draw_options options,
-          struct device_vertex p1,
-          struct device_vertex p2)
+draw_clipped_line(struct drawable *d,
+                  struct draw_options options,
+                  struct device_vertex p1,
+                  struct device_vertex p2)
 {
-	if (!clip_line(&p1, &p2))
-		return;
-
 	struct window_vertex win_vert1 = draw_map_vertex(d, &p1);
 	struct window_vertex win_vert2 = draw_map_vertex(d, &p2);
 
@@ -121,15 +115,14 @@ draw_line(struct drawable *d,
 }
 
 static void
-draw_triangle(struct drawable *d,
-              struct draw_options options,
-              const struct device_vertex vertices[3],
-              bool front)
+draw_clipped_triangle(struct drawable *d,
+                      struct draw_options options,
+                      const struct device_vertex vertices[3],
+                      bool front)
 {
-	if (!clip_point(&(vertices[0])) ||
-			!clip_point(&(vertices[1])) ||
-			!clip_point(&(vertices[2])))
-		return;
+	assert(clip_point(&(vertices[0])));
+	assert(clip_point(&(vertices[1])));
+	assert(clip_point(&(vertices[2])));
 
 	struct window_vertex win_verts[3];
 	if (front)
@@ -175,27 +168,32 @@ draw_polygon(struct drawable *d, struct draw_options options, const struct devic
 	else
 		return;
 
+	struct device_vertex clipped_verts[MAX_PRIMITIVE_VERTICES * 2];
+	u_int num_clipped_verts = clip_polygon(vertices, num_verts, clipped_verts);
+	if (num_clipped_verts < 3)
+		return;
+
 	switch (polygon_mode)
 	{
 		case GL_POINT:
-			for (GLuint i = 0; i < num_verts; ++i)
-				draw_point(d, options, &(vertices[i]));
+			for (GLuint i = 0; i < num_clipped_verts; ++i)
+				draw_clipped_point(d, options, &(clipped_verts[i]));
 			break;
 
 		case GL_LINE:
-			for (GLuint i = 0; i < num_verts; ++i)
-				draw_line(d, options, vertices[i], vertices[(i + 1) % num_verts]);
+			for (GLuint i = 0; i < num_clipped_verts; ++i)
+				draw_clipped_line(d, options, clipped_verts[i], clipped_verts[(i + 1) % num_clipped_verts]);
 			break;
 
 		case GL_FILL:
 		{
 			struct device_vertex tri_verts[3];
-			tri_verts[0] = vertices[0];
-			for (GLuint i = 1; i < num_verts - 1; ++i)
+			tri_verts[0] = clipped_verts[0];
+			for (GLuint i = 1; i < num_clipped_verts - 1; ++i)
 			{
-				tri_verts[1] = vertices[i];
-				tri_verts[2] = vertices[i + 1];
-				draw_triangle(d, options, tri_verts, front);
+				tri_verts[1] = clipped_verts[i];
+				tri_verts[2] = clipped_verts[i + 1];
+				draw_clipped_triangle(d, options, tri_verts, front);
 			}
 			break;
 		}
@@ -289,11 +287,16 @@ draw_primitive(struct drawable *d,
 	switch (num_verts)
 	{
 		case 1:
-			draw_point(d, options, &(vertices[0]));
+			if (clip_point(&(vertices[0])))
+				draw_clipped_point(d, options, &(vertices[0]));
 			break;
 		case 2:
-			draw_line(d, options, vertices[0], vertices[1]);
+		{
+			struct device_vertex clipped_vertices[2];
+			if (clip_line(&(vertices[0]), &(vertices[1]), &(clipped_vertices[0]), &(clipped_vertices[1])))
+				draw_clipped_line(d, options, clipped_vertices[0], clipped_vertices[1]);
 			break;
+		}
 		default:
 			draw_polygon(d, options, vertices, num_verts);
 			break;
