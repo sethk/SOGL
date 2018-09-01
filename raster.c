@@ -5,6 +5,7 @@
 #include <OpenGL/gl.h>
 #include <assert.h>
 #include <math.h>
+#include <stdio.h>
 #include "raster.h"
 #include "matrix.h"
 #include "vector.h"
@@ -96,21 +97,40 @@ raster_pixel(struct drawable *d, struct draw_options options, struct raster_vert
 	}
 }
 
+static struct raster_span *
+raster_add_span(struct drawable *d, raster_loc_t y)
+{
+	if (d->num_spans < (u_int)d->window_height)
+	{
+		struct raster_span *span = &(d->spans[d->num_spans++]);
+		span->y = y;
+		return span;
+	}
+	else
+	{
+		fputs("Spans overflow\n", stderr);
+		return NULL;
+	}
+}
+
 void
 raster_scan_point(struct drawable *d, const struct window_vertex *vertex)
 {
 #if DIRECTX_POINT_RASTER
-	d->spans[d->num_spans].y = (raster_loc_t)floor(vertex->coord.y);
-	d->spans[d->num_spans].left_x = (raster_loc_t)ceil(vertex->coord.x - 1.0);
+	struct raster_span *span = raster_add_span(d, floor(vertex->coord.y);
+	if (!span)
+		return;
+	span->left_x = (raster_loc_t)ceil(vertex->coord.x - 1.0);
 #else
-	d->spans[d->num_spans].y = (raster_loc_t)vertex->coord.y;
-	d->spans[d->num_spans].left_x = (raster_loc_t)vertex->coord.x;
+	struct raster_span *span = raster_add_span(d, vertex->coord.y);
+	if (!span)
+		return;
+	span->left_x = (raster_loc_t)vertex->coord.x;
 #endif // DIRECTX_POINT_RASTER
-	d->spans[d->num_spans].left_depth = vertex->coord.z;
-	d->spans[d->num_spans].x_delta = 1;
-	d->spans[d->num_spans].left_color = vertex->color;
-	d->spans[d->num_spans].color_delta = (struct vector4){.v = {0, 0, 0, 0}};
-	++d->num_spans;
+	span->left_depth = vertex->coord.z;
+	span->x_delta = 1;
+	span->left_color = vertex->color;
+	span->color_delta = (struct vector4){.v = {0, 0, 0, 0}};
 }
 
 enum point_part
@@ -159,15 +179,15 @@ raster_emit_span_diff(struct drawable *d,
                       struct vector4 right_color)
 {
 	assert(left_x <= right_x);
-	struct raster_span *span = &(d->spans[d->num_spans]);
-	span->y = y;
+	struct raster_span *span = raster_add_span(d, y);
+	if (!span)
+		return;
 	span->left_x = left_x;
 	span->x_delta = (right_x - left_x) + 1;
 	span->left_depth = left_depth;
 	span->depth_delta = right_depth - left_depth;
 	span->left_color = left_color;
 	span->color_delta = vector4_sub(right_color, left_color);
-	++d->num_spans;
 }
 
 static void
@@ -185,15 +205,15 @@ raster_emit_span_para(struct drawable *d,
 	assert(x_delta > 0);
 	assert(left_t >= 0 && left_t <= 1);
 	assert(left_t + t_delta <= 1);
-	struct raster_span *span = &(d->spans[d->num_spans]);
-	span->y = y;
+	struct raster_span *span = raster_add_span(d, y);
+	if (!span)
+		return;
 	span->left_x = left_x;
 	span->x_delta = x_delta;
 	span->left_depth = depth1 + left_t * depth_delta;
 	span->depth_delta = t_delta * depth_delta;
 	span->left_color = vector4_add(color1, vector4_mult_scalar(color_delta, left_t));
 	span->color_delta = vector4_mult_scalar(color_delta, t_delta);
-	++d->num_spans;
 }
 
 static void
@@ -470,8 +490,9 @@ raster_scan_gradual_line(struct drawable *d,
 			next_y = floor(v1->coord.y + next_t * y_delta);
 		} while (next_y == scan_y);
 
-		struct raster_span *span = &(d->spans[d->num_spans]);
-		span->y = scan_y;
+		struct raster_span *span = raster_add_span(d, scan_y);
+		if (!span)
+			return;
 		if (scan_x1 <= scan_x2)
 		{
 			span->left_x = scan_x1;
@@ -494,7 +515,6 @@ raster_scan_gradual_line(struct drawable *d,
 			span->left_color = vector4_add(v1->color, vector4_mult_scalar(color_delta, scan_t2));
 			span->color_delta = vector4_sub(right_color, span->left_color);
 		}
-		++d->num_spans;
 	}
 }
 
@@ -564,15 +584,15 @@ raster_scan_steep_line(struct drawable *d,
 		assert(t >= 0 && t <= 1.0);
 		raster_loc_t x = floor(v1->coord.x + t * x_delta);
 
-		struct raster_span *span = &(d->spans[d->num_spans]);
-		span->y = y;
+		struct raster_span *span = raster_add_span(d, y);
+		if (!span)
+			return;
 		span->left_x = x;
 		span->x_delta = 1;
 		span->left_depth = v1->coord.z + t * depth_delta;
 		span->depth_delta = 0;
 		span->left_color = vector4_add(v1->color, vector4_mult_scalar(color_delta, t));
 		span->color_delta = (struct vector4){.r = 0, .g = 0, .b = 0};
-		++d->num_spans;
 	}
 #endif // RASTER_SCAN_LINE_INCR
 }
@@ -1014,14 +1034,15 @@ raster_scan_trapezoid(struct drawable *d, const struct raster_edge *left_edge, c
 					vector4_add(right_edge->color_start, vector4_mult_scalar(right_edge->color_delta, t));
 			scalar_t left_depth = left_edge->start.z + left_edge->dir.z * t;
 			scalar_t right_depth = right_edge->start.z + right_edge->dir.z * t;
-			d->spans[d->num_spans].y = y;
-			d->spans[d->num_spans].left_x = left_raster_x;
-			d->spans[d->num_spans].x_delta = x_delta;
-			d->spans[d->num_spans].left_depth = left_depth;
-			d->spans[d->num_spans].depth_delta = right_depth - left_depth;
-			d->spans[d->num_spans].left_color = left_color;
-			d->spans[d->num_spans].color_delta = vector4_sub(right_color, left_color);
-			++d->num_spans;
+			struct raster_span *span = raster_add_span(d, y);
+			if (!span)
+				return;
+			span->left_x = left_raster_x;
+			span->x_delta = x_delta;
+			span->left_depth = left_depth;
+			span->depth_delta = right_depth - left_depth;
+			span->left_color = left_color;
+			span->color_delta = vector4_sub(right_color, left_color);
 		}
 	}
 }
@@ -1122,17 +1143,36 @@ raster_scan_triangle(struct drawable *d, const struct window_vertex vertices[3])
 		raster_scan_trapezoid(d, &(left_edges[0]), &(right_edges[0]));
 }
 
-#define EACH_SPAN(d) \
-	const struct raster_span *spans_end = (d)->spans + (d)->num_spans;\
-	for (const struct raster_span *span = (d)->spans; span != spans_end; ++span)
+static bool
+raster_start_span(struct drawable *d, const struct raster_span *span)
+{
+	if (span->y >= d->view_y && span->y < d->view_y + d->view_height)
+	{
+		if (span->left_x >= d->view_x && span->left_x + span->x_delta <= d->view_x + d->view_width)
+			return true;
+		else
+			fprintf(stderr, "%s(): span->left_x & span->x_delta (%d - %d) outside viewport x (%d - %d)\n",
+					__FUNCTION__,
+					span->left_x, span->left_x + span->x_delta, d->view_x, d->view_x + d->view_width);
+	}
+	else
+		fprintf(stderr, "%s(): span->y (%d) outside viewport y (%d - %d)\n",
+			__FUNCTION__, span->y, d->view_y, d->view_y + d->view_height);
+
+	return false;
+}
 
 void
 raster_fill_spans(struct drawable *d, struct draw_options options)
 {
+	const struct raster_span *spans_end = d->spans + d->num_spans;
 	if (options.test_depth && options.depth_func == GL_LESS && options.draw_op == GL_COPY)
 	{
-		EACH_SPAN(d)
+		for (const struct raster_span *span = d->spans; span != spans_end; ++span)
 		{
+			if (!raster_start_span(d, span))
+				continue;
+
 			raster_depth_t *depths = d->depth_buffer + span->y * d->window_width + span->left_x;
 			struct raster_color *pixels = d->color_buffer + span->y * d->window_width + span->left_x;
 			for (raster_dist_t off = 0; off < span->x_delta; ++off)
@@ -1152,16 +1192,19 @@ raster_fill_spans(struct drawable *d, struct draw_options options)
 	}
 	else
 	{
-		for (u_int i = 0; i < d->num_spans; ++i)
+		for (const struct raster_span *span = d->spans; span != spans_end; ++span)
 		{
+			if (!raster_start_span(d, span))
+				continue;
+
 			struct raster_vertex rvert;
-			rvert.coord.y = d->spans[i].y;
-			rvert.coord.x = d->spans[i].left_x;
-			for (raster_dist_t off = 0; off < d->spans[i].x_delta; ++off)
+			rvert.coord.y = span->y;
+			rvert.coord.x = span->left_x;
+			for (raster_dist_t off = 0; off < span->x_delta; ++off)
 			{
-				scalar_t u = (scalar_t) off / d->spans[i].x_delta;
-				rvert.coord.depth = d->spans[i].left_depth + u * d->spans[i].depth_delta;
-				rvert.color = vector4_add(d->spans[i].left_color, vector4_mult_scalar(d->spans[i].color_delta, u));
+				scalar_t u = (scalar_t) off / span->x_delta;
+				rvert.coord.depth = span->left_depth + u * span->depth_delta;
+				rvert.color = vector4_add(span->left_color, vector4_mult_scalar(span->color_delta, u));
 				raster_pixel(d, options, rvert);
 				rvert.coord.x += 1;
 			}
