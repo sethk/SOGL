@@ -120,7 +120,11 @@ clip_line_unit_plane(const struct device_vertex *v1, const struct device_vertex 
 	scalar_t num = vector3_dot(*pnorm, edge_to_p1);
 	scalar_t denom = -norm_dot_dir;
 	scalar_t t = num / denom;
-	return clip_vertex_lerp(v1, v2, t);
+	struct device_vertex v;
+	v.coord.xyz = vector3_lerp(p1, p2, t);
+	v.coord.w = 1;
+	v.color = vector4_lerp(v1->color, v2->color, t);
+	return v;
 }
 
 static u_int
@@ -166,6 +170,11 @@ clip_polygon(const struct device_vertex *verts, u_int num_verts, struct device_v
 		                                            temp_verts);
 		bcopy(temp_verts, clipped_verts, sizeof(temp_verts[0]) * num_clipped_verts);
 	}
+
+	/*
+	for (u_int vert_index = 0; vert_index < num_clipped_verts; ++vert_index)
+		assert(clip_point(&(clipped_verts[vert_index])));
+	 */
 
 	return num_clipped_verts;
 }

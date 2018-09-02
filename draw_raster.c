@@ -124,9 +124,11 @@ draw_clipped_triangle(struct drawable *d,
                       const struct device_vertex vertices[3],
                       bool front)
 {
+	/*
 	assert(clip_point(&(vertices[0])));
 	assert(clip_point(&(vertices[1])));
 	assert(clip_point(&(vertices[2])));
+	 */
 
 	struct window_vertex win_verts[3];
 	if (front)
