@@ -11,10 +11,9 @@
 #include "vector.h"
 
 #define CLAMP_COLORS 0
-#define RASTER_SCAN_LINE_INCR 0
 
 static inline void
-raster_write_pixel_i(const struct vector4 *color, struct raster_color *pixel)
+raster_write_pixel_i(const struct vector4 *color, struct window_color *pixel)
 {
 #if CLAMP_COLORS
 	pixel->red = round(fmax(fmin(color->r, 1.0), 0) * 255);
@@ -33,7 +32,7 @@ raster_write_pixel_i(const struct vector4 *color, struct raster_color *pixel)
 }
 
 void
-raster_write_pixel(const struct vector4 *color, struct raster_color *pixel)
+raster_write_pixel(const struct vector4 *color, struct window_color *pixel)
 {
 	raster_write_pixel_i(color, pixel);
 }
@@ -71,7 +70,7 @@ raster_pixel(struct drawable *d, struct draw_options options, struct raster_vert
 	{
 		case GL_COPY:
 		{
-			struct raster_color *pixel = d->color_buffer + vertex.coord.y * d->window_width + vertex.coord.x;
+			struct window_color *pixel = d->color_buffer + vertex.coord.y * d->window_width + vertex.coord.x;
 #if CLAMP_COLORS
 			pixel->red = round(fmax(fmin(vertex.color.r, 1.0), 0) * 255);
 			pixel->green = round(fmax(fmin(vertex.color.g, 1.0), 0) * 255);
@@ -445,156 +444,6 @@ raster_scan_down_line(struct drawable *d,
 
 	if (start_y > end_y)
 		raster_scan_vertical_line(d, v1, v2, x, fill_start, start_y, start_t, -1, end_y, y_delta);
-}
-
-static void
-raster_scan_gradual_line(struct drawable *d,
-                         const struct window_vertex *v1, const struct window_vertex *v2,
-                         scalar_t x_delta)
-{
-	scalar_t y_delta = v2->coord.y - v1->coord.y;
-	assert(fabs(y_delta) <= fabs(x_delta));
-	const raster_loc_t x1 = ceil(v1->coord.x - 0.5);
-	const raster_loc_t x2 = ceil(v2->coord.x - 0.5);
-	raster_dist_t x_step;
-	if (x_delta > 0)
-		x_step = 1;
-	else
-		x_step = -1;
-	scalar_t depth_delta = v2->coord.z - v1->coord.z;
-	struct vector4 color_delta = vector4_sub(v2->color, v1->color);
-
-	raster_loc_t next_x = x1;
-	scalar_t next_t = ((next_x + 0.5) - v1->coord.x) / x_delta;
-	assert(next_t >= 0 && next_t <= 1.0);
-	raster_loc_t next_y = floor(v1->coord.y + next_t * y_delta);
-
-	while (next_x != x2)
-	{
-		raster_loc_t scan_x1 = next_x;
-		scalar_t scan_t1 = next_t;
-		raster_loc_t scan_y = next_y;
-
-		raster_loc_t scan_x2;
-		scalar_t scan_t2;
-		do
-		{
-			scan_x2 = next_x;
-			scan_t2 = next_t;
-
-			next_x+= x_step;
-			if (next_x == x2)
-				break;
-			next_t = ((next_x + 0.5) - v1->coord.x) / x_delta;
-			assert(next_t >= 0 && next_t <= 1.0);
-			next_y = floor(v1->coord.y + next_t * y_delta);
-		} while (next_y == scan_y);
-
-		struct raster_span *span = raster_add_span(d, scan_y);
-		if (!span)
-			return;
-		if (scan_x1 <= scan_x2)
-		{
-			span->left_x = scan_x1;
-			span->x_delta = (scan_x2 - scan_x1) + 1;
-			span->left_depth = v1->coord.z + scan_t1 * depth_delta;
-			raster_depth_t right_depth = v1->coord.z + scan_t2 * depth_delta;
-			span->depth_delta = right_depth - span->left_depth;
-			struct vector4 right_color = vector4_add(v1->color, vector4_mult_scalar(color_delta, scan_t2));
-			span->left_color = vector4_add(v1->color, vector4_mult_scalar(color_delta, scan_t1));
-			span->color_delta = vector4_sub(right_color, span->left_color);
-		}
-		else
-		{
-			span->left_x = scan_x2;
-			span->x_delta = (scan_x1 - scan_x2) + 1;
-			span->left_depth = v1->coord.z + scan_t2 * depth_delta;
-			raster_depth_t right_depth = v1->coord.z + scan_t1 * depth_delta;
-			span->depth_delta = right_depth - span->left_depth;
-			struct vector4 right_color = vector4_add(v1->color, vector4_mult_scalar(color_delta, scan_t1));
-			span->left_color = vector4_add(v1->color, vector4_mult_scalar(color_delta, scan_t2));
-			span->color_delta = vector4_sub(right_color, span->left_color);
-		}
-	}
-}
-
-static void
-raster_scan_steep_line(struct drawable *d,
-                       const struct window_vertex *v1, const struct window_vertex *v2,
-                       scalar_t y_delta)
-{
-#if RASTER_SCAN_LINE_INCR
-	//struct raster_vertex v = v1;
-	int delta_x = v2.coord.x - v1.coord.x;
-	int delta_y = v2.coord.y - v1.coord.y;
-	assert(v1.coord.y + delta_y == v2.coord.y);
-	assert(abs(delta_x) <= abs(delta_y));
-	int x_incr;
-	if (delta_x > 0)
-		x_incr = 1;
-	else
-	{
-		x_incr = -1;
-		delta_x = -delta_x;
-	}
-	int actual_delta_y = delta_y;
-	int y_incr;
-	if (delta_y > 0)
-		y_incr = 1;
-	else
-	{
-		y_incr = -1;
-		delta_y = -delta_y;
-	}
-	int decide = 2 * delta_x - delta_y;
-	int incr_up = 2 * delta_x;
-	int incr_diag = 2 * (delta_x - delta_y);
-	raster_pixel(d, options, v);
-	while (v.coord.y != v2.coord.y)
-	{
-		if (decide <= 0)
-			decide+= incr_up;
-		else
-		{
-			decide += incr_diag;
-			v.coord.x += x_incr;
-		}
-		v.coord.y+= y_incr;
-		GLdouble u = ((GLdouble)v.coord.y - v1.coord.y) / actual_delta_y;
-		v.color = vector4_lerp(v1.color, v2.color, u);
-		raster_pixel(d, options, v);
-	}
-#else
-	scalar_t x_delta = v2->coord.x - v1->coord.x;
-	assert(fabs(x_delta) <= fabs(y_delta));
-	const raster_loc_t y1 = floor(v1->coord.y);
-	const raster_loc_t y2 = floor(v2->coord.y);
-
-	raster_dist_t y_step;
-	if (y_delta > 0)
-		y_step = 1;
-	else
-		y_step = -1;
-	scalar_t depth_delta = v2->coord.z - v1->coord.z;
-	struct vector4 color_delta = vector4_sub(v2->color, v1->color);
-
-	for (raster_loc_t y = y1; y != y2; y+= y_step)
-	{
-		scalar_t t = (y - v1->coord.y) / y_delta;
-		assert(t >= 0 && t <= 1.0);
-		raster_loc_t x = floor(v1->coord.x + t * x_delta);
-
-		struct raster_span *span = raster_add_span(d, y);
-		if (!span)
-			return;
-		span->left_x = x;
-		span->x_delta = 1;
-		span->left_depth = v1->coord.z + t * depth_delta;
-		span->depth_delta = 0;
-		span->left_color = vector4_add(v1->color, vector4_mult_scalar(color_delta, t));
-		span->color_delta = (struct vector4){.r = 0, .g = 0, .b = 0};
-	}
-#endif // RASTER_SCAN_LINE_INCR
 }
 
 static void
@@ -1174,7 +1023,7 @@ raster_fill_spans(struct drawable *d, struct draw_options options)
 				continue;
 
 			raster_depth_t *depths = d->depth_buffer + span->y * d->window_width + span->left_x;
-			struct raster_color *pixels = d->color_buffer + span->y * d->window_width + span->left_x;
+			struct window_color *pixels = d->color_buffer + span->y * d->window_width + span->left_x;
 			for (raster_dist_t off = 0; off < span->x_delta; ++off)
 			{
 				scalar_t t = (scalar_t) off / span->x_delta;

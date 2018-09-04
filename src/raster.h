@@ -75,14 +75,13 @@ struct drawable
 	raster_loc_t window_width, window_height;
 	raster_loc_t view_x, view_y, view_width, view_height;
 	struct matrix4x4 view_trans;
-	struct raster_color *color_buffer;
+	struct window_color *color_buffer;
 	raster_depth_t *depth_buffer;
-	//struct polygon_edge **edge_table;
 	struct raster_span *spans;
 	u_int num_spans;
 };
 
-void raster_write_pixel(const struct vector4 *color, struct raster_color *pixel);
+void raster_write_pixel(const struct vector4 *color, struct window_color *pixel);
 void raster_pixel(struct drawable *d, struct draw_options options, struct raster_vertex vertex);
 void raster_scan_point(struct drawable *d, const struct window_vertex *vertex);
 void raster_scan_line(struct drawable *d, const struct window_vertex *v1, const struct window_vertex *v2);

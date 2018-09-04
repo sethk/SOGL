@@ -163,53 +163,55 @@ render_axes_debug()
 static void
 render_frustum_debug(struct matrix4x4 proj)
 {
-	/*
 	debug_disp->point_size(debug_rend, 5);
 	debug_disp->begin(debug_rend, GL_POINTS);
 	debug_disp->color3f(debug_rend, 0, 1, 0);
-	struct vector4 eye_pos = matrix4x4_mult_vector4(debug_proj, proj.world_eye_pos);
+	struct vector4 eye_pos = matrix4x4_mult_vector4(debug_proj, origin);
 	debug_disp->vertex4dv(debug_rend, eye_pos.v);
 	debug_disp->end(debug_rend);
 	debug_disp->point_size(debug_rend, 1);
-	 */
-	/*
-	glBegin(GL_LINES);
-	glColor3f(0, 1, 1);
-	vec4_t edge = {-1, -1, -1, 1};
-	vec4_t trans_edge;
-	struct matrix4x4 trans;
-	matrix4x4_mult_matrix4x4(modelview_matrix, projection_matrix, &trans);
-	matrix4x4_mult_vec4(trans, edge, trans_edge);
-	glVertex3dv(trans_edge);
-	edge[3] = 1;
-	matrix4x4_mult_vec4(trans, edge, trans_edge);
-	glVertex3dv(trans_edge);
-	glEnd();
-	 */
+
+	static struct vector2 edges_xy[4] =
+			{
+					{.v = {-1, -1}},
+					{.v = {-1, 1}},
+					{.v = {1, 1}},
+					{.v = {1, -1}}
+			};
+	struct matrix4x4 proj_inv = matrix4x4_invert(proj);
+	struct matrix4x4 trans = matrix4x4_mult_matrix4x4(debug_proj, proj_inv);
+	debug_disp->color3f(debug_rend, 0, 1, 1);
+	for (u_int i = 0; i < number_of(edges_xy); ++i)
+	{
+		debug_disp->begin(debug_rend, GL_LINE_STRIP);
+
+		struct vector4 next_near_corner;
+		next_near_corner.xy = edges_xy[(i + 1) % number_of(edges_xy)];
+		next_near_corner.z = -1;
+		next_near_corner.w = 1;
+		struct vector4 trans_next_near_corner = matrix4x4_mult_vector4(trans, next_near_corner);
+		debug_disp->vertex4dv(debug_rend, trans_next_near_corner.v);
+
+		struct vector4 near_corner;
+		near_corner.xy = edges_xy[i];
+		near_corner.z = -1;
+		near_corner.w = 1;
+		struct vector4 trans_near_corner = matrix4x4_mult_vector4(trans, near_corner);
+		debug_disp->vertex4dv(debug_rend, trans_near_corner.v);
+
+		struct vector4 far_corner = near_corner;
+		far_corner.z = 1;
+		struct vector4 trans_far_corner = matrix4x4_mult_vector4(trans, far_corner);
+		debug_disp->vertex4dv(debug_rend, trans_far_corner.v);
+
+		struct vector4 next_far_corner = next_near_corner;
+		next_far_corner.z = 1;
+		struct vector4 trans_next_far_corner = matrix4x4_mult_vector4(trans, next_far_corner);
+		debug_disp->vertex4dv(debug_rend, trans_next_far_corner.v);
+
+		debug_disp->end(debug_rend);
+	}
 }
-
-/*
-static void
-render_lights_debug(struct light *lights, GLuint num_lights)
-{
-	struct matrix4x4 trans = render_get_debug_proj();
-
-	glBegin(GL_LINES);
-	glColor3f(1, 1, 0);
-	vec4_t dir;
-	bcopy(lights[0].dir, dir, sizeof(lights[0].dir));
-	dir[3] = 1.0;
-	vec3_mult_scalar(dir, 5, dir);
-	matrix4x4_mult_vec4(trans, dir, dir);
-	glVertex4dv(dir);
-	//vec4_print(dir);
-
-	vec4_t trans_origin;
-	matrix4x4_mult_vec4(trans, origin, trans_origin);
-	glVertex4dv(trans_origin);
-	glEnd();
-}
-*/
 
 static struct shaded_vertex
 render_shade_vertex(const struct modelview modelview,
@@ -397,7 +399,8 @@ render_primitive_debug(const struct modelview modelview,
 	debug_disp->end(debug_rend);
 
 	render_axes_debug();
-	render_frustum_debug(proj);
+	if (debug_mode != DEBUG_PROJECTION)
+		render_frustum_debug(proj);
 }
 
 void

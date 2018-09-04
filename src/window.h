@@ -17,15 +17,14 @@ struct window
 	struct drawable *drawable;
 };
 
-struct raster_color
+struct window_color
 {
 	u_int8_t red, green, blue, alpha;
 };
 
 void window_update(struct window *w,
-                   const struct raster_color *frame,
-                   u_int x, u_int y, u_int width, u_int height,
-                   bool flipped_y);
+                   const struct window_color *frame,
+                   u_int x, u_int y, u_int width, u_int height);
 void window_flip(struct window *w);
 
 #ifdef __cplusplus

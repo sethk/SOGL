@@ -9,8 +9,6 @@
 #include "draw.h"
 #include "vector.h"
 
-#pragma GCC diagnostic warning "-Wunused-variable"
-
 struct line_seg
 {
 	struct vector3 start;

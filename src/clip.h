@@ -20,8 +20,6 @@ bool clip_line(const struct device_vertex *p1, const struct device_vertex *p2,
                struct device_vertex *clip_p1, struct device_vertex *clip_p2);
 u_int clip_polygon(const struct device_vertex *verts, u_int num_verts, struct device_vertex *clipped_verts);
 
-struct device_vertex clip_vertex_lerp(const struct device_vertex *p1, const struct device_vertex *p2, scalar_t t);
-
 #ifdef __cplusplus
 }
 #endif // __cplusplus

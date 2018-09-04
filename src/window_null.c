@@ -17,9 +17,8 @@ window_create_null(void)
 
 void
 window_update(struct window *w,
-              const struct raster_color *frame,
-              u_int x, u_int y, u_int width, u_int height,
-              bool flipped_y)
+              const struct window_color *frame,
+              u_int x, u_int y, u_int width, u_int height)
 {
 }
 
