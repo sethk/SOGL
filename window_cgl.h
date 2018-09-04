@@ -6,6 +6,7 @@
 #define SOGL_WINDOW_CGL_H
 
 #include <OpenGL/OpenGL.h>
+#include <OpenGL/CGLContext.h>
 #include "window.h"
 
 struct cgl_window

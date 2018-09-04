@@ -10,9 +10,7 @@ sphere              Correct
 prim                Correct
 
 === Almost correct
-glutplane           No flat shade model and no polygon clipping
+glutplane           No flat shade model
 simple              Triangle has bumps
-
-=== Incorrect
-overlap             Fails overlap test
-raster_test         Doesn't draw lines
+overlap             Points locations rounded incorrectly
+raster_test         Some missing pixels at line ends
