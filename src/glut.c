@@ -4,8 +4,8 @@
 #include <assert.h>
 #include "glut.h"
 #include "gl.h"
-#include "../window_cgl.h"
-#include "../draw.h"
+#include "window_cgl.h"
+#include "draw.h"
 #include "render.h"
 #include "wrap_glut.h"
 

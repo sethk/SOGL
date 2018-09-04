@@ -7,7 +7,7 @@
 #include <math.h>
 #include "render.h"
 #include "macro.h"
-#include "../draw.h"
+#include "draw.h"
 
 struct drawable *drawable;
 static const struct vector4 origin = {.x = 0, .y = 0, .z = 0, .w = 1};

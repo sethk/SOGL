@@ -4,7 +4,7 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include "matrix.h"
+#include "../src/matrix.h"
 
 int
 main(void)

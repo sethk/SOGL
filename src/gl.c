@@ -1,4 +1,4 @@
-#include "src/gl.h"
+#include "gl.h"
 #include <GLUT/glut.h>
 #include <OpenGL/CGLContext.h>
 #include <OpenGL/CGLCurrent.h>
@@ -9,9 +9,9 @@
 
 #include "vector.h"
 #include "matrix.h"
-#include "src/render.h"
+#include "render.h"
 #include "draw.h"
-#include "src/macro.h"
+#include "macro.h"
 
 #include "gl_stubs.c"
 
@@ -977,7 +977,7 @@ gl_swap_APPLE(GLIContext ctx)
 void
 gl_setup_context(CGLContextObj context)
 {
-#include "../gl_setup_ctx.c"
+#include "gl_setup_ctx.c"
 }
 
 /* GLU */

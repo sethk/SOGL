@@ -3,7 +3,7 @@
 //
 
 #include <GLUT/glut.h>
-#include "vector.h"
+#include "../src/vector.h"
 
 void
 display(void)

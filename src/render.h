@@ -5,9 +5,9 @@
 #include <stdbool.h>
 #include <OpenGL/CGLContext.h>
 
-#include "../matrix.h"
-#include "../vector.h"
-#include "../draw.h"
+#include "matrix.h"
+#include "vector.h"
+#include "draw.h"
 
 struct modelview
 {

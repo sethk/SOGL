@@ -2,9 +2,9 @@
 // Created by Seth Kingsley on 6/25/18.
 //
 
-#include "window_null.h"
-#include "raster.h"
-#include "matrix.h"
+#include "../src/window_null.h"
+#include "../src/raster.h"
+#include "../src/matrix.h"
 #include <gtest/gtest.h>
 
 using namespace std;

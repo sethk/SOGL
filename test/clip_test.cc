@@ -2,8 +2,8 @@
 // Created by Seth Kingsley on 8/29/18.
 //
 
-#include "raster.h"
-#include "clip.h"
+#include "../src/raster.h"
+#include "../src/clip.h"
 #include <cmath>
 #include <gtest/gtest.h>
 
