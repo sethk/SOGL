@@ -23,15 +23,49 @@ static struct matrix4x4 projection_stack[2] = {IDENTITY_MATRIX4X4};
 static GLuint projection_depth = 0;
 static GLenum primitive_mode;
 static GLboolean triangle_strip_winding = GL_FALSE;
-static struct draw_options draw_options =
-		{
-				.draw_op = GL_COPY,
-				.test_depth = false,
-				.depth_func = GL_LESS,
-				.polygon_modes = {GL_FILL, GL_FILL},
-				.cull_faces = false,
-				.faces_culled = {false, true}
-		};
+
+#define DEFAULT_LIGHT {\
+        .enabled = false,\
+        .pos = {.x = 0, .y = 0, .z = 1, .w = 0},\
+        .diffuse = {.v = {0, 0, 0, 0}},\
+        .specular = {.v = {0, 0, 0, 0}}\
+    }
+
+static struct render_options render_options =
+{
+		.smooth_shading = true,
+		.lighting_enabled = false,
+		.lighting =
+				{
+						.global_ambient = {.r = 0.2, .g = 0.2, .b = 0.2, .a = 1.0},
+						.local_viewer = false,
+						.lights =
+								{
+										{
+												.enabled = false,
+												.pos = {.x = 0, .y = 0, .z = 1, .w = 0},
+												.diffuse = {.r = 1, .g = 1, .b = 1, .a = 1},
+												.specular = {.r = 1, .g = 1, .b = 1, .a = 1}
+										},
+										DEFAULT_LIGHT,
+										DEFAULT_LIGHT,
+										DEFAULT_LIGHT,
+										DEFAULT_LIGHT,
+										DEFAULT_LIGHT,
+										DEFAULT_LIGHT,
+										DEFAULT_LIGHT
+								}
+				},
+		.draw_options =
+				{
+						.draw_op = GL_COPY,
+						.test_depth = false,
+						.depth_func = GL_LESS,
+						.polygon_modes = {GL_FILL, GL_FILL},
+						.cull_faces = false,
+						.faces_culled = {false, true}
+				},
+};
 static struct material material =
 {
 	.color = {.r = 1, .g = 1, .b = 1, .a = 1},
@@ -44,36 +78,6 @@ static struct material material =
 static struct vector3 normal;
 static struct vertex vertices[MAX_PRIMITIVE_VERTICES];
 static GLuint num_vertices;
-
-#define DEFAULT_LIGHT {\
-        .enabled = GL_FALSE,\
-        .pos = {.x = 0, .y = 0, .z = 1, .w = 0},\
-        .diffuse = {.v = {0, 0, 0, 0}},\
-        .specular = {.v = {0, 0, 0, 0}}\
-    }
-
-static GLboolean lighting_enabled = GL_FALSE;
-static struct lighting lighting =
-{
-	.global_ambient = {.r = 0.2, .g = 0.2, .b = 0.2, .a = 1.0},
-	.local_viewer = false,
-	.lights =
-	{
-		{
-			.enabled = GL_FALSE,
-			.pos = {.x = 0, .y = 0, .z = 1, .w = 0},
-			.diffuse = {.r = 1, .g = 1, .b = 1, .a = 1},
-			.specular = {.r = 1, .g = 1, .b = 1, .a = 1}
-		},
-		DEFAULT_LIGHT,
-		DEFAULT_LIGHT,
-		DEFAULT_LIGHT,
-		DEFAULT_LIGHT,
-		DEFAULT_LIGHT,
-		DEFAULT_LIGHT,
-		DEFAULT_LIGHT
-	}
-};
 
 static const GLuint max_attrib_depth = 3;
 static struct saved_attrib
@@ -212,17 +216,10 @@ gl_normal3sv(GLIContext ctx, const GLshort *v)
 static void
 gl_render_primitive(GLuint *indices, GLuint num_indices)
 {
-	struct modelview modelview;
-	modelview.matrix = modelview_stack[modelview_depth];
-	modelview.inverse_trans = matrix4x4_invert_trans(modelview_stack[modelview_depth]);
-	struct matrix4x4 proj = projection_stack[projection_depth];
-	render_primitive(modelview,
-	                 proj,
-	                 vertices,
-	                 indices,
-	                 num_indices,
-	                 (lighting_enabled) ? &lighting : NULL,
-	                 draw_options);
+	render_options.modelview.matrix = modelview_stack[modelview_depth];
+	render_options.modelview.inverse_trans = matrix4x4_invert_trans(modelview_stack[modelview_depth]);
+	render_options.proj = projection_stack[projection_depth];
+	render_primitive(&render_options, vertices, indices, num_indices);
 }
 
 static void
@@ -581,19 +578,19 @@ gl_enable(GLIContext rend, GLenum cap)
 	switch (cap)
 	{
 		case GL_DEPTH_TEST:
-			draw_options.test_depth = true;
+			render_options.draw_options.test_depth = true;
 			break;
 
 		case GL_LIGHTING:
-			lighting_enabled = GL_TRUE;
+			render_options.lighting_enabled = GL_TRUE;
 			break;
 
 		case GL_LIGHT0:
-			lighting.lights[cap - GL_LIGHT0].enabled = GL_TRUE;
+			render_options.lighting.lights[cap - GL_LIGHT0].enabled = GL_TRUE;
 			break;
 
 		case GL_CULL_FACE:
-			draw_options.cull_faces = true;
+			render_options.draw_options.cull_faces = true;
 			break;
 
 		default:
@@ -608,19 +605,19 @@ gl_disable(GLIContext ctx, GLenum cap)
     switch (cap)
 	{
 		case GL_DEPTH_TEST:
-			draw_options.test_depth = false;
+			render_options.draw_options.test_depth = false;
 			break;
 
 		case GL_LIGHTING:
-			lighting_enabled = GL_FALSE;
+			render_options.lighting_enabled = GL_FALSE;
 			break;
 
 		case GL_LIGHT0:
-			lighting.lights[cap - GL_LIGHT0].enabled = GL_FALSE;
+			render_options.lighting.lights[cap - GL_LIGHT0].enabled = GL_FALSE;
 			break;
 
 		case GL_CULL_FACE:
-			draw_options.cull_faces = false;
+			render_options.draw_options.cull_faces = false;
 			break;
 
 		default:
@@ -633,7 +630,7 @@ gl_disable(GLIContext ctx, GLenum cap)
 static void
 gl_depth_func(GLIContext ctx, GLenum func)
 {
-	draw_options.depth_func = func;
+	render_options.draw_options.depth_func = func;
 }
 
 static void
@@ -642,13 +639,13 @@ gl_polygon_mode(GLIContext ctx, GLenum face, GLenum mode)
 	switch (face)
 	{
 		case GL_FRONT:
-			draw_options.polygon_modes[0] = mode;
+			render_options.draw_options.polygon_modes[0] = mode;
 			break;
 		case GL_BACK:
-			draw_options.polygon_modes[1] = mode;
+			render_options.draw_options.polygon_modes[1] = mode;
 			break;
 		case GL_FRONT_AND_BACK:
-			draw_options.polygon_modes[0] = draw_options.polygon_modes[1] = mode;
+			render_options.draw_options.polygon_modes[0] = render_options.draw_options.polygon_modes[1] = mode;
 			break;
 		default:
 			assert(!"Invalid polygon face");
@@ -663,11 +660,11 @@ gl_push_attrib(GLIContext ctx, GLbitfield mask)
 	attrib->bits = 0;
     if (mask & GL_ENABLE_BIT)
 	{
-		attrib->test_depth = draw_options.test_depth;
-		attrib->lighting_enabled = lighting_enabled;
+		attrib->test_depth = render_options.draw_options.test_depth;
+		attrib->lighting_enabled = render_options.lighting_enabled;
 		for (u_int light = 0; light < MAX_LIGHTS; ++light)
-			attrib->lights_enabled[light] = lighting.lights[light].enabled;
-		attrib->cull_faces = draw_options.cull_faces;
+			attrib->lights_enabled[light] = render_options.lighting.lights[light].enabled;
+		attrib->cull_faces = render_options.draw_options.cull_faces;
 		attrib->bits|= GL_ENABLE_BIT;
 	}
 	++saved_attrib_depth;
@@ -683,11 +680,11 @@ gl_pop_attrib(GLIContext ctx)
 	struct saved_attrib *attrib = &(saved_attrib_stack[saved_attrib_depth]);
 	if (attrib->bits & GL_ENABLE_BIT)
 	{
-		draw_options.test_depth = attrib->test_depth;
-		lighting_enabled = attrib->lighting_enabled;
+		render_options.draw_options.test_depth = attrib->test_depth;
+		render_options.lighting_enabled = attrib->lighting_enabled;
 		for (u_int light = 0; light < MAX_LIGHTS; ++light)
-			lighting.lights[light].enabled = attrib->lights_enabled[light];
-		draw_options.cull_faces = attrib->cull_faces;
+			render_options.lighting.lights[light].enabled = attrib->lights_enabled[light];
+		render_options.draw_options.cull_faces = attrib->cull_faces;
 	}
 	attrib->bits&= ~GL_ENABLE_BIT;
 	if (attrib->bits)
@@ -706,10 +703,10 @@ gl_light_modelfv(GLIContext ctx, GLenum pname, const GLfloat *params)
 	switch (pname)
 	{
 		case GL_LIGHT_MODEL_AMBIENT:
-			lighting.global_ambient = vector4_from_float_array(params);
+			render_options.lighting.global_ambient = vector4_from_float_array(params);
 			break;
 		case GL_LIGHT_MODEL_LOCAL_VIEWER:
-			lighting.local_viewer = (params[0] != 0.0);
+			render_options.lighting.local_viewer = (params[0] != 0.0);
 			break;
 		default:
 			fprintf(stderr, "TODO: light_modelfv() 0x%x\n", pname);
@@ -746,18 +743,19 @@ gl_lightfv(GLIContext rend, GLenum light, GLenum pname, const GLfloat *params)
 	switch (pname)
 	{
 		case GL_AMBIENT:
-			lighting.lights[light - GL_LIGHT0].ambient = vector4_from_float_array(params);
+			render_options.lighting.lights[light - GL_LIGHT0].ambient = vector4_from_float_array(params);
 			break;
 		case GL_DIFFUSE:
-			lighting.lights[light - GL_LIGHT0].diffuse = vector4_from_float_array(params);
+			render_options.lighting.lights[light - GL_LIGHT0].diffuse = vector4_from_float_array(params);
 			break;
 		case GL_SPECULAR:
-			lighting.lights[light - GL_LIGHT0].specular = vector4_from_float_array(params);
+			render_options.lighting.lights[light - GL_LIGHT0].specular = vector4_from_float_array(params);
 			break;
 		case GL_POSITION:
 		{
 			struct vector4 pos = vector4_from_float_array(params);
-			lighting.lights[light - GL_LIGHT0].pos = matrix4x4_mult_vector4(modelview_stack[modelview_depth], pos);
+			render_options.lighting.lights[light - GL_LIGHT0].pos =
+					matrix4x4_mult_vector4(modelview_stack[modelview_depth], pos);
 			break;
 		}
 		default:
@@ -957,9 +955,7 @@ gl_viewport(GLIContext rend, GLint x, GLint y, GLsizei width, GLsizei height)
 static void
 gl_shade_model(GLIContext rend, GLenum mode)
 {
-	if (mode != GL_SMOOTH)
-		fprintf(stderr, "%s() TODO\n", __FUNCTION__);
-	//opengl_disp.shade_model(opengl_rend, mode);
+	render_options.smooth_shading = (mode == GL_SMOOTH);
 }
 
 static GLenum

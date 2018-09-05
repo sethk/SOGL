@@ -175,7 +175,7 @@ glutIdleFunc(void (*fp)(void))
 void
 glutSwapBuffers(void)
 {
-	draw_finish(drawable);
+	glFinish();
 	openGLUTSwapBuffers();
 
 	if (glut_push_debug())

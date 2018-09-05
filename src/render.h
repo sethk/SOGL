@@ -48,13 +48,14 @@ struct lighting
 	} lights[MAX_LIGHTS];
 };
 
-struct shaded_vertex
+struct render_options
 {
-	struct vector4 world_pos;
-	struct vector4 view_pos;
-	struct vector3 world_norm;
-	struct vector3 light_dirs[MAX_LIGHTS];
-	struct vector3 lighting_eye_dir;
+	struct modelview modelview;
+	struct matrix4x4 proj;
+	bool smooth_shading;
+	bool lighting_enabled;
+	struct lighting lighting;
+	struct draw_options draw_options;
 };
 
 extern struct drawable *drawable;
@@ -65,12 +66,9 @@ extern GLIFunctionDispatch *debug_disp;
 void render_init_debug(void);
 void render_update_debug_title(void);
 void render_debug_key(u_char key, int x, int y);
-void render_primitive(const struct modelview modelview,
-                      const struct matrix4x4 proj,
+void render_primitive(const struct render_options *options,
                       struct vertex *vertices,
                       u_int *indices,
-                      u_int num_vertices,
-                      struct lighting *lighting,
-                      struct draw_options option);
+                      u_int num_vertices);
 
 #endif //SOGL_RENDER_H
