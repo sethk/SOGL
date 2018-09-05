@@ -16,6 +16,7 @@
 #include "gl_stubs.c"
 
 static struct vector4 clear_color = {.r = 0, .g = 0, .b = 0, .a = 0};
+static GLfloat clear_depth = 1.0;
 static GLenum matrix_mode = GL_MODELVIEW;
 static struct matrix4x4 modelview_stack[32] = {IDENTITY_MATRIX4X4};
 static GLuint modelview_depth = 0;
@@ -566,7 +567,7 @@ gl_clear(GLIContext rend, GLbitfield mask)
 		fprintf(stderr, "%s() TODO: 0x%x\n", __FUNCTION__, mask & ~GL_COLOR_BUFFER_BIT);
 	bool color = ((mask & GL_COLOR_BUFFER_BIT) != 0);
 	bool depth = ((mask & GL_DEPTH_BUFFER_BIT) != 0);
-	draw_clear(drawable, color, clear_color, depth, 1.0);
+	draw_clear(drawable, color, clear_color, depth, clear_depth);
 
 	if (debug_rend)
 		debug_disp->clear(debug_rend, mask & GL_COLOR_BUFFER_BIT);
@@ -892,6 +893,12 @@ gl_clear_color(GLIContext rend, GLclampf red, GLclampf green, GLclampf blue, GLc
 	clear_color.b = blue;
 	clear_color.g = green;
 	clear_color.a = alpha;
+}
+
+static void
+gl_clear_depth(GLIContext ctx, GLclampd depth)
+{
+	clear_depth = depth;
 }
 
 static void

@@ -61,12 +61,6 @@ gl_clear_accum(GLIContext ctx, GLfloat red, GLfloat green, GLfloat blue, GLfloat
 }
 
 static void
-gl_clear_depth(GLIContext ctx, GLclampd depth)
-{
-	fprintf(stderr, "TODO: clear_depth()\n");
-}
-
-static void
 gl_clear_index(GLIContext ctx, GLfloat c)
 {
 	fprintf(stderr, "TODO: clear_index()\n");
