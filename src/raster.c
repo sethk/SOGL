@@ -861,16 +861,16 @@ raster_scan_trapezoid(struct drawable *d, const struct raster_edge *left_edge, c
 {
 	//assert(left_edge->start.x <= right_edge->start.x);
 	//assert((left_edge->start.x + left_edge->dir.x) - (right_edge->start.x + right_edge->dir.x) <= 0.000000001);
-	assert(fabs(left_edge->start.y - right_edge->start.y) <= 0.0000000001);
+	assert(fabs(left_edge->start.y - right_edge->start.y) <= 1e-10);
 	assert(left_edge->dir.y > 0);
 	assert(right_edge->dir.y > 0);
-	assert(fabs(left_edge->dir.y - right_edge->dir.y) <= 0.0000000001);
+	assert(fabs(left_edge->dir.y - right_edge->dir.y) <= 1e-10);
 	raster_loc_t min_y = lround(left_edge->start.y);
 	raster_loc_t max_y = lround(left_edge->start.y + left_edge->dir.y);
 	for (raster_loc_t y = min_y; y < max_y; ++y)
 	{
 		scalar_t t = ((y + 0.5) - left_edge->start.y) / left_edge->dir.y;
-		assert(t >= 0 && t <= 1.0);
+		assert(t >= 0 && t - 1.0 <= 1e-10);
 		scalar_t left_x = left_edge->start.x + left_edge->dir.x * t;
 		raster_loc_t left_raster_x = ceil(left_x - 0.5);
 		scalar_t right_x = right_edge->start.x + right_edge->dir.x * t;
