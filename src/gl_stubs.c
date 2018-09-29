@@ -385,12 +385,6 @@ gl_end_list(GLIContext ctx)
 }
 
 static void
-gl_eval_coord1d(GLIContext ctx, GLdouble u)
-{
-	fprintf(stderr, "TODO: eval_coord1d()\n");
-}
-
-static void
 gl_eval_coord1dv(GLIContext ctx, const GLdouble *u)
 {
 	fprintf(stderr, "TODO: eval_coord1dv()\n");
@@ -409,21 +403,9 @@ gl_eval_coord1fv(GLIContext ctx, const GLfloat *u)
 }
 
 static void
-gl_eval_coord2d(GLIContext ctx, GLdouble u, GLdouble v)
-{
-	fprintf(stderr, "TODO: eval_coord2d()\n");
-}
-
-static void
 gl_eval_coord2dv(GLIContext ctx, const GLdouble *u)
 {
 	fprintf(stderr, "TODO: eval_coord2dv()\n");
-}
-
-static void
-gl_eval_coord2f(GLIContext ctx, GLfloat u, GLfloat v)
-{
-	fprintf(stderr, "TODO: eval_coord2f()\n");
 }
 
 static void
@@ -436,12 +418,6 @@ static void
 gl_eval_mesh1(GLIContext ctx, GLenum mode, GLint i1, GLint i2)
 {
 	fprintf(stderr, "TODO: eval_mesh1()\n");
-}
-
-static void
-gl_eval_mesh2(GLIContext ctx, GLenum mode, GLint i1, GLint i2, GLint j1, GLint j2)
-{
-	fprintf(stderr, "TODO: eval_mesh2()\n");
 }
 
 static void
@@ -843,54 +819,6 @@ static void
 gl_logic_op(GLIContext ctx, GLenum opcode)
 {
 	fprintf(stderr, "TODO: logic_op()\n");
-}
-
-static void
-gl_map1d(GLIContext ctx, GLenum target, GLdouble u1, GLdouble u2, GLint stride, GLint order, const GLdouble *points)
-{
-	fprintf(stderr, "TODO: map1d()\n");
-}
-
-static void
-gl_map1f(GLIContext ctx, GLenum target, GLfloat u1, GLfloat u2, GLint stride, GLint order, const GLfloat *points)
-{
-	fprintf(stderr, "TODO: map1f()\n");
-}
-
-static void
-gl_map2d(GLIContext ctx, GLenum target, GLdouble u1, GLdouble u2, GLint ustride, GLint uorder, GLdouble v1, GLdouble v2, GLint vstride, GLint vorder, const GLdouble *points)
-{
-	fprintf(stderr, "TODO: map2d()\n");
-}
-
-static void
-gl_map2f(GLIContext ctx, GLenum target, GLfloat u1, GLfloat u2, GLint ustride, GLint uorder, GLfloat v1, GLfloat v2, GLint vstride, GLint vorder, const GLfloat *points)
-{
-	fprintf(stderr, "TODO: map2f()\n");
-}
-
-static void
-gl_map_grid1d(GLIContext ctx, GLint un, GLdouble u1, GLdouble u2)
-{
-	fprintf(stderr, "TODO: map_grid1d()\n");
-}
-
-static void
-gl_map_grid1f(GLIContext ctx, GLint un, GLfloat u1, GLfloat u2)
-{
-	fprintf(stderr, "TODO: map_grid1f()\n");
-}
-
-static void
-gl_map_grid2d(GLIContext ctx, GLint un, GLdouble u1, GLdouble u2, GLint vn, GLdouble v1, GLdouble v2)
-{
-	fprintf(stderr, "TODO: map_grid2d()\n");
-}
-
-static void
-gl_map_grid2f(GLIContext ctx, GLint un, GLfloat u1, GLfloat u2, GLint vn, GLfloat v1, GLfloat v2)
-{
-	fprintf(stderr, "TODO: map_grid2f()\n");
 }
 
 static void

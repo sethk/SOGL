@@ -254,7 +254,10 @@ render_light_vertex(const struct vector4 *world_pos, const struct vector3 *norm,
 	norm4.xyz = *norm;
 	norm4.w = 0;
 	lit_vertex->world_norm = matrix4x4_mult_vector4(inverse_modelview, norm4).xyz;
-	vector3_check_norm(lit_vertex->world_norm, "world_norm");
+	if (lighting->normalize)
+		lit_vertex->world_norm = vector3_norm(lit_vertex->world_norm);
+	else
+		vector3_check_norm(lit_vertex->world_norm, "world_norm");
 
 	if (debug_rend)
 	{

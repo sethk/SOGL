@@ -37,6 +37,7 @@ enum {MAX_LIGHTS = 8};
 struct lighting
 {
 	struct vector4 global_ambient;
+	bool normalize;
 	bool local_viewer;
 	struct
 	{
