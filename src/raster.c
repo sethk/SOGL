@@ -744,7 +744,8 @@ raster_scan_steep_down_line(struct drawable *d,
 	scalar_t start_t;
 	if (y1_frac > 0.5)
 	{
-		start_t = (y1_frac - 0.5) / y_delta;
+		start_t = (0.5 - y1_frac) / y_delta;
+		assert(start_t >= 0);
 		// TODO: if (start_x > 0.5)
 		scalar_t start_x = v1->coord.x + start_t * x_delta;
 		fill_start = (ceil(start_x) - 1 == x1);
