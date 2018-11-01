@@ -70,8 +70,15 @@ clip_line(const struct device_vertex *p1, const struct device_vertex *p2,
 	struct vector3 end = vector4_project(p2->coord);
 	struct line_seg seg = clip_make_line_seg(&start, &end);
 	if (seg.dir.x == 0 && seg.dir.y == 0)
+	{
 		// Degenerate line; clip as a point
-		return clip_point(p1);
+		if (!clip_point(p1))
+			return false;
+
+		*clip_p1 = *p1;
+		*clip_p2 = *p2;
+		return true;
+	}
 
 	if (!clip_line_seg_unit_cube(&seg))
 		return false;
