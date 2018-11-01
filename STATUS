@@ -1,16 +1,18 @@
                     raster_slow                             raster_fast
 === Correct
+checker             Missing pixels at line ends
 cube                Correct
+evaltest            Correct
 flat                Correct
+glutplane           Correct
 material            Correct
-movelight           Correct (without teapot or text)
+movelight           Correct (without text)
 n64                 Correct
+raster_test         Correct
 scene               Correct
 sphere              Correct
 prim                Correct
 
 === Almost correct
-glutplane           No flat shade model
 simple              Triangle has bumps
 overlap             Points locations rounded incorrectly
-raster_test         Some missing pixels at line ends
