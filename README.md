@@ -2,6 +2,17 @@ Seth's OpenGL
 ========================
 **SOGL** is a toy rasterizer I made for my own exploration of the fixed-function OpenGL pipeline as it existed before the introduction of programmable shaders.
 
+<img src="sample/screenshot/simple.png" height="120" alt="simple"
+/><img src="sample/screenshot/prim.png" height="120" alt="prim"
+/><img src="sample/screenshot/cube.png" height="120" alt="cube"
+/><img src="sample/screenshot/sphere.png" height="120" alt="sphere"
+/><br /><img src="sample/screenshot/material.png" height="180" alt="material"
+/><img src="sample/screenshot/scene.png" height="180" alt="scene"
+/><img src="sample/screenshot/eval.png" height="180" alt="eval"
+/><br /><img src="sample/screenshot/glutplane.png" height="200" alt="glutplane"
+/><img src="sample/screenshot/movelight.png" height="200" alt="movelight"
+/><img src="sample/screenshot/n64.png" height="200" alt="n64" />
+
 Basic overview
 --------------
 * Setup and windowing (`glut.c`, `window_cgl.c`)
